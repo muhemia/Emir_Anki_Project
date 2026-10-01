@@ -769,26 +769,6 @@ export default function App() {
           </div>
         </Modal>
       )}
-      <nav className="bottom-nav" aria-label="App-Navigation">
-        <button
-          className={!dialog || dialog.kind !== "settings" ? "active" : ""}
-          aria-current={!dialog ? "page" : undefined}
-          onClick={() => {
-            setDialog(undefined);
-            navigate(null);
-          }}
-        >
-          <Layers size={23} />
-          <span>Sammlung</span>
-        </button>
-        <button
-          className={dialog?.kind === "settings" ? "active" : ""}
-          onClick={() => open({ kind: "settings" })}
-        >
-          <Settings2 size={23} />
-          <span>Mehr</span>
-        </button>
-      </nav>
     </div>
   );
 }

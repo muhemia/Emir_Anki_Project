@@ -222,25 +222,6 @@
   padding: 11px 7px;
   margin: 15px 9px 0;
 }
-.phone-demo-tabs {
-  display: flex;
-  justify-content: space-around;
-  gap: 15px;
-  margin: 22px -8px 0;
-  padding: 13px 0 12px;
-  border-top: 1px solid var(--line);
-}
-.phone-demo-tabs > span {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 8px;
-}
-.phone-demo-tabs > span:first-child {
-  color: var(--accent);
-}
 .phone-home {
   height: 4px;
   width: 82px;

@@ -334,7 +334,7 @@ test("Installationsseite und Lern-App sind getrennt und behalten dieselbe Sammlu
 }) => {
   await createFolder(page, "Mein vorhandenes Thema");
   await expect(
-    page.getByRole("navigation", { name: "App-Navigation" }),
+    page.getByRole("button", { name: "Einstellungen öffnen" }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "App installieren", exact: true }),
@@ -379,7 +379,7 @@ test("Ein installiertes Home-Screen-Symbol öffnet auch von der Startadresse die
     page.getByRole("heading", { name: "Deine Sammlung." }),
   ).toBeVisible();
   await expect(
-    page.getByRole("navigation", { name: "App-Navigation" }),
+    page.getByRole("button", { name: "Einstellungen öffnen" }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "App installieren", exact: true }),

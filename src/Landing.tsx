@@ -151,16 +151,6 @@ export default function Landing() {
                   Erste Karte erstellen <Plus size={14} />
                 </span>
               </div>
-              <div className="phone-demo-tabs">
-                <span>
-                  <Layers size={20} />
-                  Sammlung
-                </span>
-                <span>
-                  <Settings2 size={20} />
-                  Mehr
-                </span>
-              </div>
               <div className="phone-home" />
             </div>
             <div className="phone-label">

@@ -27,7 +27,7 @@ Der Entwicklungsserver wird im Terminal angezeigt (normalerweise http://127.0.0.
 ## Installationsseite und App
 
 - **http://localhost:4173/** ist die eigene Webseite zum Installieren, mit Anleitung für iPhone und Android und einem Link zum Ausprobieren.
-- **http://localhost:4173/app.html** ist die eigentliche Lern-App. Ihre Navigation liegt unten (Sammlung, Mehr); Einstellungen, Hell-/Dunkelmodus und Sicherungen befinden sich unter Mehr. „Lernen starten“ befindet sich in der Lernübersicht des geöffneten Themas. „Neue Karte“ und „Neuer Ordner“ stehen gemeinsam unter der Suche. Sie hat keinen Drawer und keinen Installationsbutton.
+- **http://localhost:4173/app.html** ist die eigentliche Lern-App. Die Einstellungen oben rechts enthalten Hell-/Dunkelmodus und Sicherungen. Zur Sammlung gelangst du über den Ordnerpfad oder den Zurück-Pfeil. „Lernen starten“ befindet sich in der Lernübersicht des geöffneten Themas. „Neue Karte“ und „Neuer Ordner“ stehen gemeinsam unter der Suche. Sie hat keinen Drawer und keinen Installationsbutton.
 - Installierte PWA-Symbole starten direkt in der Lern-App. Das Manifest verweist auf `app.html`; bereits vorhandene Home-Screen-Verknüpfungen auf die Startseite werden im Standalone-Modus ebenfalls direkt zur Lernansicht geführt.
 - Beide Ansichten verwenden dieselbe Website-Adresse und dieselbe IndexedDB. Ein Wechsel zwischen ihnen überschreibt oder verschiebt keine Karten. Der bisherige PWA-Identifier bleibt erhalten.
 - Die separate Webseite verändert die Installationstechnik nicht: Es bleibt eine PWA, keine native IPA-/APK-Datei. Der Browser installiert die App; unter iOS ist der Schritt über das Teilen-Menü erforderlich.
@@ -59,7 +59,7 @@ Die internen Daten liegen in IndexedDB. Bilder werden als Binärdaten gespeicher
 4. Antwort aufdecken, „Nochmal“ wählen und die letzte Bewertung rückgängig machen. Danach „Einfach“ wählen: Die Karte ist erst zum nächsten Termin fällig.
 5. Anatomie über das Drei-Punkte-Menü auf die oberste Ebene verschieben. Die Kopf-Karte behält ihren Lernstand.
 6. Sicherung erstellen und zweimal wieder importieren. Vorhandene Ordner bleiben erhalten; neue Kopien werden nummeriert.
-7. Unter Mehr den Dunkelmodus einschalten und neu laden. Darstellung und Inhalte bleiben erhalten.
+7. In den Einstellungen den Dunkelmodus einschalten und neu laden. Darstellung und Inhalte bleiben erhalten.
 8. Auf „Auch offline bereit“ warten, Seite einmal neu laden, Browser/Computer offline schalten und erneut laden. Karten und Bilder bleiben nutzbar. Auch offline eine neue Karte erstellen.
 
 Löschen ist nach Bestätigung dauerhaft. Vor größeren Änderungen eine Sicherung exportieren.
@@ -77,7 +77,7 @@ Nach dem ersten vollständigen Laden zeigt die App „Auch offline bereit“. Up
 
 ## Sicherungen und Grenzen
 
-Browser können lokale Daten löschen, etwa bei Speicherknappheit oder beim Entfernen der Website-Daten. „Dauerhaften Speicher anfragen“ unter Mehr kann helfen, ersetzt aber keine Sicherung. Regelmäßig eine ZIP-Datei außerhalb der App speichern. Die App kann nicht im Hintergrund beliebige Ordner in der iPhone-Dateien-App beschreiben. Ein erfolgreicher Export-Download bedeutet noch nicht, dass du die Datei an einem sicheren Ort abgelegt hast.
+Browser können lokale Daten löschen, etwa bei Speicherknappheit oder beim Entfernen der Website-Daten. „Dauerhaften Speicher anfragen“ in den Einstellungen kann helfen, ersetzt aber keine Sicherung. Regelmäßig eine ZIP-Datei außerhalb der App speichern. Die App kann nicht im Hintergrund beliebige Ordner in der iPhone-Dateien-App beschreiben. Ein erfolgreicher Export-Download bedeutet noch nicht, dass du die Datei an einem sicheren Ort abgelegt hast.
 
 Version 1 akzeptiert JPG, PNG und WebP, bis 20 MB je Eingabebild. Bilder werden auf maximal 2.048 Pixel an der längsten Seite verkleinert (PNG bleibt transparent); maximal 20 Bilder je Kartenseite. Karten enthalten einfachen Text mit Zeilenumbrüchen. ZIP-Pakete und enthaltene Medien sind auf jeweils insgesamt 100 MB begrenzt, einzelne gespeicherte Bilder auf 12 MB, die JSON-Datei auf 12 MB. Größere Sammlungen in einzelnen Themen exportieren. Beschädigte Dateien werden vor dem Schreiben geprüft; der eigentliche Import läuft in einer Transaktion.
 
