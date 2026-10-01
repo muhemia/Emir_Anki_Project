@@ -1,6 +1,6 @@
 {
   "name": "emir-cards",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Lokale Karteikarten-App mit FSRS, Offline-Modus und portablen Sicherungen",
   "scripts": {
     "dev": "vite --host 127.0.0.1",

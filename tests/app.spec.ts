@@ -118,7 +118,7 @@ async function offlineReload(page: Page, browserName: string) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/app.html");
   await expect(
     page.getByRole("heading", { name: "Deine Sammlung." }),
   ).toBeVisible();
@@ -130,14 +130,12 @@ test("leere Sammlung, Hell/Dunkel, mobile Darstellung und persistente Daten", as
 }) => {
   await expect(page.locator(".folder-card")).toHaveCount(0);
   await expect(page.locator(".card-row")).toHaveCount(0);
-  if (isMobile)
-    await page.getByRole("button", { name: "Navigation öffnen" }).click();
+  await page.getByRole("button", { name: "Einstellungen öffnen" }).click();
   await page.getByRole("button", { name: "Dunkelmodus aktivieren" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  if (isMobile)
-    await page
-      .getByRole("button", { name: "Navigation schließen", exact: true })
-      .click();
+  await page
+    .getByRole("button", { name: "Dialog schließen", exact: true })
+    .click();
   await createFolder(page, "Eigener Ordner");
   await page.reload();
   await expect(
@@ -251,7 +249,7 @@ test("Export, zweimal additiver Import, Bilder und vollständiger Offline-Neusta
 }) => {
   const server = await isolatedStaticServer();
   try {
-    await page.goto(server.url);
+    await page.goto(server.url + "/app.html");
     await createFolder(page, "Biologie");
     await openFolder(page, "Biologie");
     await createCard(page, "Bildfrage", "Bildantwort", true);
@@ -326,4 +324,61 @@ test("Export, zweimal additiver Import, Bilder und vollständiger Offline-Neusta
   } finally {
     await server.stop();
   }
+});
+
+test("Installationsseite und Lern-App sind getrennt und behalten dieselbe Sammlung", async ({
+  page,
+}) => {
+  await createFolder(page, "Mein vorhandenes Thema");
+  await expect(
+    page.getByRole("navigation", { name: "App-Navigation" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "App installieren", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Navigation öffnen", exact: true }),
+  ).toHaveCount(0);
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Wissen, das bei dir bleibt." }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "App-Navigation" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "App installieren", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "App öffnen", exact: true }).click();
+  await expect(page).toHaveURL(/app\.html$/);
+  await expect(
+    page.getByRole("button", {
+      name: "Ordner Mein vorhandenes Thema öffnen",
+      exact: true,
+    }),
+  ).toBeVisible();
+  const manifest = await page.request.get("/manifest.webmanifest");
+  const config = await manifest.json();
+  expect(config.id).toBe("./");
+  expect(config.start_url).toBe("./app.html");
+  expect(config.display).toBe("standalone");
+});
+
+test("Ein installiertes Home-Screen-Symbol öffnet auch von der Startadresse die Lern-App", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() =>
+    Object.defineProperty(navigator, "standalone", { value: true }),
+  );
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Deine Sammlung." }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "App-Navigation" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "App installieren", exact: true }),
+  ).toHaveCount(0);
 });

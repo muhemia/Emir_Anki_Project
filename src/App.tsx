@@ -6,16 +6,15 @@ import {
   ArrowUpRight,
   BookOpen,
   Check,
-  ChevronDown,
+  ArrowLeft,
+  Settings2,
   ChevronRight,
   Clock3,
-  Download,
   Folder as FolderIcon,
   FolderPlus,
   HardDrive,
   Image,
   Layers,
-  Menu,
   Moon,
   MoreHorizontal,
   Pencil,
@@ -44,12 +43,8 @@ type Dialog =
   | { kind: "move"; item: "folder" | "card"; id: string }
   | { kind: "delete"; item: "folder" | "card"; id: string; name: string }
   | { kind: "backup" }
-  | { kind: "install" }
+  | { kind: "settings" }
   | { kind: "preview"; card: Flashcard };
-type InstallPrompt = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: string }>;
-};
 function closeMenus() {
   document
     .querySelectorAll("details[open]")
@@ -104,88 +99,11 @@ function ItemMenu({
     </details>
   );
 }
-function FolderTree({
-  folders,
-  parentId,
-  currentId,
-  onSelect,
-  depth = 0,
-}: {
-  folders: Folder[];
-  parentId: string | null;
-  currentId: string | null;
-  onSelect: (id: string) => void;
-  depth?: number;
-}) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  return (
-    <>
-      {folders
-        .filter((f) => f.parentId === parentId)
-        .sort((a, b) => a.name.localeCompare(b.name, "de"))
-        .map((folder) => {
-          const children = folders.some((f) => f.parentId === folder.id);
-          const hidden = collapsed.has(folder.id);
-          return (
-            <div key={folder.id}>
-              <div
-                className={`tree-row ${currentId === folder.id ? "active" : ""}`}
-                style={{ paddingLeft: `${12 + Math.min(depth, 8) * 12}px` }}
-              >
-                <button
-                  className="tree-label"
-                  onClick={() => onSelect(folder.id)}
-                  title={folder.name}
-                >
-                  <FolderIcon
-                    size={16}
-                    className={`folder-color ${folder.color}`}
-                  />
-                  <span>{folder.name}</span>
-                </button>
-                {children && (
-                  <button
-                    className="tree-expand"
-                    aria-label={`${folder.name} ${hidden ? "aufklappen" : "zuklappen"}`}
-                    aria-expanded={!hidden}
-                    onClick={() =>
-                      setCollapsed((prev) => {
-                        const s = new Set(prev);
-                        if (s.has(folder.id)) s.delete(folder.id);
-                        else s.add(folder.id);
-                        return s;
-                      })
-                    }
-                  >
-                    {hidden ? (
-                      <ChevronRight size={14} />
-                    ) : (
-                      <ChevronDown size={14} />
-                    )}
-                  </button>
-                )}
-              </div>
-              {children && !hidden && (
-                <FolderTree
-                  folders={folders}
-                  parentId={folder.id}
-                  currentId={currentId}
-                  onSelect={onSelect}
-                  depth={depth + 1}
-                />
-              )}
-            </div>
-          );
-        })}
-    </>
-  );
-}
 export default function App() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [dialog, setDialog] = useState<Dialog>();
   const [studying, setStudying] = useState(false);
-  const [sidebar, setSidebar] = useState(false);
   const [toast, setToast] = useState("");
   const [theme, setTheme] = useState(
     document.documentElement.dataset.theme || "light",
@@ -193,7 +111,6 @@ export default function App() {
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [installPrompt, setInstallPrompt] = useState<InstallPrompt>();
   const {
     offlineReady: [offlineReady],
     needRefresh: [needRefresh],
@@ -226,14 +143,6 @@ export default function App() {
       localStorage.setItem("emir-theme", theme);
     } catch {}
   }, [theme]);
-  useEffect(() => {
-    const fn = (e: Event) => {
-      e.preventDefault();
-      setInstallPrompt(e as InstallPrompt);
-    };
-    window.addEventListener("beforeinstallprompt", fn);
-    return () => window.removeEventListener("beforeinstallprompt", fn);
-  }, []);
   useEffect(() => {
     const fn = (e: MouseEvent) => {
       if (!(e.target as Element).closest("details")) closeMenus();
@@ -291,7 +200,6 @@ export default function App() {
   const navigate = (folderId: string | null) => {
     setCurrentId(folderId);
     setSearch("");
-    setSidebar(false);
   };
   const saved = (message: string) => {
     setDialog(undefined);
@@ -299,7 +207,6 @@ export default function App() {
   };
   const open = (next: Dialog) => {
     setError("");
-    setSidebar(false);
     setDialog(next);
   };
   async function remove() {
@@ -324,147 +231,46 @@ export default function App() {
       />
     );
   return (
-    <div className="app-shell">
-      {sidebar && (
-        <button
-          className="sidebar-scrim"
-          aria-label="Außerhalb der Navigation schließen"
-          onClick={() => setSidebar(false)}
-        />
-      )}
-      <aside className={`sidebar ${sidebar ? "open" : ""}`}>
-        <button
-          className="icon-button sidebar-close"
-          aria-label="Navigation schließen"
-          onClick={() => setSidebar(false)}
-        >
-          <X size={20} />
-        </button>
-        <a
-          className="brand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate(null);
-          }}
-        >
-          <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" />
-          <div>
-            emir<span>CARDS</span>
-          </div>
-        </a>
-        <div className="sidebar-label">DEIN LERNRAUM</div>
-        <button
-          className={`nav-item ${currentId === null ? "active" : ""}`}
-          onClick={() => navigate(null)}
-        >
-          <Layers size={19} />
-          <span>Sammlung</span>
-          <span className="nav-count">{cards.length}</span>
-        </button>
-        <button
-          className="nav-item"
-          onClick={() => {
-            setSidebar(false);
-            setStudying(true);
-          }}
-        >
-          <BookOpen size={19} />
-          <span>Lernen</span>
-          {due + fresh > 0 && <span className="nav-count">{due + fresh}</span>}
-        </button>
-        <div className="sidebar-section-head">
-          <span className="sidebar-label">DEINE THEMEN</span>
-          <button
-            className="icon-button small"
-            aria-label="Ordner in oberster Ebene erstellen"
-            onClick={() => {
-              navigate(null);
-              open({ kind: "folder" });
-            }}
-          >
-            <Plus size={17} />
-          </button>
-        </div>
-        <div className="tree-scroll">
-          {folders.length ? (
-            <FolderTree
-              folders={folders}
-              parentId={null}
-              currentId={currentId}
-              onSelect={navigate}
-            />
-          ) : (
-            <p className="tree-empty">
-              Deine Themen finden
-              <br />
-              hier ihren Platz.
-            </p>
-          )}
-        </div>
-        <div className="sidebar-bottom">
-          <div className="backup-note">
-            <ShieldCheck size={21} />
-            <strong>Dein Wissen gehört dir.</strong>
-            <p>
-              Alles bleibt auf deinem Gerät.
-              <br />
-              Sichere deine Sammlung regelmäßig.
-            </p>
-            <button onClick={() => open({ kind: "backup" })}>
-              Sicherung & Import <ArrowUpRight size={15} />
-            </button>
-          </div>
-          <div className="sidebar-footer">
-            <span>
-              <span className="status-dot" /> Lokal gespeichert
-            </span>
+    <div className="native-shell">
+      <div className="workspace">
+        <header className="native-header">
+          {folder ? (
             <button
               className="icon-button"
-              aria-label={
-                theme === "light"
-                  ? "Dunkelmodus aktivieren"
-                  : "Hellmodus aktivieren"
-              }
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              aria-label="Zum übergeordneten Ordner"
+              onClick={() => navigate(folder.parentId)}
             >
-              {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+              <ArrowLeft size={23} />
             </button>
-          </div>
-        </div>
-      </aside>
-      <div className="workspace">
-        <header className="topbar">
+          ) : (
+            <div className="native-brand">
+              <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" />
+              <span>emir cards</span>
+            </div>
+          )}
+          {folder && <span className="native-header-title">{folder.name}</span>}
           <button
-            className="icon-button mobile-menu"
-            aria-label="Navigation öffnen"
-            onClick={() => setSidebar(true)}
+            className="icon-button"
+            aria-label="Einstellungen öffnen"
+            onClick={() => open({ kind: "settings" })}
           >
-            <Menu size={21} />
-          </button>
-          <nav aria-label="Ordnerpfad" className="breadcrumbs">
-            <button onClick={() => navigate(null)}>Sammlung</button>
-            {crumbs.map((c) => (
-              <span key={c.id}>
-                <ChevronRight size={14} />
-                <button
-                  onClick={() => navigate(c.id)}
-                  aria-current={c.id === currentId ? "page" : undefined}
-                >
-                  {c.name}
-                </button>
-              </span>
-            ))}
-          </nav>
-          <button
-            className="button ghost install-button"
-            aria-label="App installieren"
-            onClick={() => open({ kind: "install" })}
-          >
-            <Download size={16} />
-            <span>App installieren</span>
+            <Settings2 size={22} />
           </button>
         </header>
+        <nav aria-label="Ordnerpfad" className="breadcrumbs native-crumbs">
+          <button onClick={() => navigate(null)}>Sammlung</button>
+          {crumbs.map((c) => (
+            <span key={c.id}>
+              <ChevronRight size={13} />
+              <button
+                onClick={() => navigate(c.id)}
+                aria-current={c.id === currentId ? "page" : undefined}
+              >
+                {c.name}
+              </button>
+            </span>
+          ))}
+        </nav>
         <main className="main-content">
           {needRefresh && (
             <div className="update-banner">
@@ -482,17 +288,14 @@ export default function App() {
           )}
           <div className="page-heading">
             <div>
-              <div className="eyebrow">
-                {folder ? "RAUM FÜR DEIN THEMA" : "EIN BISSCHEN JEDEN TAG"}
-              </div>
               <h1>
                 {title}
                 <span className="title-dot">.</span>
               </h1>
               <p>
                 {folder
-                  ? "Ein Thema. Viele kleine Schritte nach vorn."
-                  : "Wissen wächst. Karte für Karte."}
+                  ? "Alle Karten dieses Themas und seiner Unterordner."
+                  : "Deine Themen. Dein Tempo."}
               </p>
             </div>
             <button
@@ -893,77 +696,103 @@ export default function App() {
           </div>
         </Modal>
       )}
-      {dialog?.kind === "install" && (
-        <Modal
-          title="Dein Lernraum, immer dabei"
-          onClose={() => setDialog(undefined)}
-        >
-          <div className="dialog-body">
-            <div className="install-logo">
-              <img
-                src={`${import.meta.env.BASE_URL}favicon.svg`}
-                alt="Emir Cards"
-              />
-            </div>
-            <p className="muted">
-              Füge Emir Cards zum Home-Bildschirm hinzu. Nach dem ersten
-              vollständigen Laden kannst du auch ohne Internet lernen.
-            </p>
-            {installPrompt && (
+      {dialog?.kind === "settings" && (
+        <Modal title="Deine Einstellungen" onClose={() => setDialog(undefined)}>
+          <div className="dialog-body settings-body">
+            <section className="settings-group">
+              <h3>Darstellung</h3>
               <button
-                className="button primary full"
+                className="settings-row"
+                aria-label={
+                  theme === "light"
+                    ? "Dunkelmodus aktivieren"
+                    : "Hellmodus aktivieren"
+                }
+                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              >
+                {theme === "light" ? <Moon size={21} /> : <Sun size={21} />}
+                <span>Dunkelmodus</span>
+                <span
+                  className={`theme-switch ${theme === "dark" ? "on" : ""}`}
+                  aria-hidden="true"
+                >
+                  <i />
+                </span>
+              </button>
+            </section>
+            <section className="settings-group">
+              <h3>Deine Daten</h3>
+              <button
+                className="settings-row"
+                onClick={() => open({ kind: "backup" })}
+              >
+                <ShieldCheck size={21} />
+                <span>
+                  Sicherung & Import
+                  <small>Sammlung sichern oder Karten hinzufügen</small>
+                </span>
+                <ChevronRight size={18} />
+              </button>
+              <button
+                className="settings-row"
                 onClick={async () => {
-                  await installPrompt.prompt();
-                  await installPrompt.userChoice;
-                  setInstallPrompt(undefined);
+                  const ok = await navigator.storage
+                    ?.persist?.()
+                    .catch(() => false);
+                  setToast(
+                    ok
+                      ? "Dauerhafter Speicher wurde gewährt. Bitte trotzdem regelmäßig sichern."
+                      : "Der Browser entscheidet über dauerhaften Speicher. Bitte regelmäßig sichern.",
+                  );
                 }}
               >
-                Jetzt installieren <Download size={18} />
+                <HardDrive size={21} />
+                <span>
+                  Speicher schützen<small>Dauerhaften Speicher anfragen</small>
+                </span>
+                <ChevronRight size={18} />
               </button>
-            )}
-            <div className="install-steps">
-              <strong>iPhone · Safari</strong>
-              <p>
-                Teilen → Zum Home-Bildschirm → „Als Web-App öffnen“ aktivieren →
-                Hinzufügen.
-              </p>
-              <strong>Android · Chrome</strong>
-              <p>
-                Browsermenü → App installieren oder Zum Startbildschirm
-                hinzufügen.
-              </p>
-              <strong>Auf deinem Computer</strong>
-              <p>
-                In Chrome oder Edge findest du das Installationssymbol in der
-                Adressleiste.
-              </p>
+            </section>
+            <p className="settings-note">
+              Deine Karten liegen auf diesem Gerät. Sichere sie regelmäßig als
+              Datei. Beim Wechsel auf ein anderes Gerät oder eine andere
+              Website-Adresse kannst du die Sicherung importieren.
+            </p>
+            <div className="app-version">
+              <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" />
+              <span>
+                Emir Cards
+                <small>Version 1.1 · Dein persönlicher Lernraum</small>
+              </span>
             </div>
-            <div className="info-note">
-              <ShieldCheck size={18} />
-              <p>
-                Deine Sammlung gehört zu dieser App-Adresse und diesem Browser.
-                Für einen Wechsel auf ein anderes Gerät oder eine andere
-                Adresse: vorher exportieren, dort importieren.
-              </p>
-            </div>
-            <button
-              className="button secondary full"
-              onClick={async () => {
-                const ok = await navigator.storage
-                  ?.persist?.()
-                  .catch(() => false);
-                setToast(
-                  ok
-                    ? "Dauerhafter Speicher wurde gewährt. Sichere deine Sammlung trotzdem regelmäßig."
-                    : "Dieser Browser entscheidet selbst über dauerhaften Speicher. Bitte regelmäßig exportieren.",
-                );
-              }}
-            >
-              Dauerhaften Speicher anfragen
-            </button>
           </div>
         </Modal>
       )}
+      <nav className="bottom-nav" aria-label="App-Navigation">
+        <button
+          className={!dialog || dialog.kind !== "settings" ? "active" : ""}
+          aria-current={!dialog ? "page" : undefined}
+          onClick={() => {
+            setDialog(undefined);
+            navigate(null);
+          }}
+        >
+          <Layers size={23} />
+          <span>Sammlung</span>
+        </button>
+        <button onClick={() => setStudying(true)}>
+          <BookOpen size={23} />
+          <span>Lernen</span>
+          {due + fresh > 0 && <i className="tab-dot" />}
+        </button>
+        <button
+          className={dialog?.kind === "settings" ? "active" : ""}
+          onClick={() => open({ kind: "settings" })}
+        >
+          <Settings2 size={23} />
+          <span>Mehr</span>
+        </button>
+      </nav>
     </div>
   );
 }

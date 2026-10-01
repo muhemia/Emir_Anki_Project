@@ -1,0 +1,516 @@
+/* The installed app has its own compact, touch-first layout. */
+.native-shell {
+  max-width: 600px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  background: var(--bg);
+  position: relative;
+}
+.native-shell .workspace {
+  margin: 0;
+  width: 100%;
+}
+.native-header {
+  position: sticky;
+  top: 0;
+  z-index: 18;
+  min-height: 66px;
+  padding: calc(12px + env(safe-area-inset-top)) 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: blur(18px);
+}
+.native-brand {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.7px;
+}
+.native-brand img {
+  width: 31px;
+  height: 31px;
+  border-radius: 9px;
+}
+.native-header .icon-button {
+  width: 44px;
+  height: 44px;
+}
+.native-header-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.native-shell .native-crumbs {
+  padding: 0 24px;
+  font-size: 12px;
+  gap: 6px;
+}
+.native-shell .native-crumbs > span {
+  gap: 6px;
+}
+.native-shell .main-content {
+  padding: 20px 24px calc(100px + env(safe-area-inset-bottom));
+  max-width: none;
+}
+.native-shell .page-heading {
+  margin-bottom: 24px;
+  align-items: center;
+}
+.native-shell .page-heading h1 {
+  font-size: 31px;
+  letter-spacing: -1px;
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+.native-shell .page-heading p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+.native-shell .page-heading .button {
+  padding: 12px;
+  min-height: 44px;
+  font-size: 12px;
+  margin: 0;
+  flex-shrink: 0;
+  border-radius: 14px;
+}
+.native-shell .overview {
+  border: 0;
+  background: var(--panel);
+  border-radius: 22px;
+  padding: 22px 18px 16px;
+  flex-direction: column;
+  gap: 21px;
+  margin-bottom: 28px;
+}
+.native-shell .stats {
+  width: 100%;
+  flex: auto;
+}
+.native-shell .stat {
+  padding: 0 12px;
+  justify-content: center;
+  text-align: center;
+}
+.native-shell .stat:first-child {
+  padding-left: 0;
+}
+.native-shell .stat:last-child {
+  padding-right: 0;
+}
+.native-shell .stat strong {
+  font-size: 28px;
+  font-weight: 650;
+}
+.native-shell .stat span:not(.stat-icon) {
+  font-size: 11px;
+}
+.native-shell .stat-icon {
+  display: none;
+}
+.native-shell .study-start {
+  border-radius: 15px;
+  min-height: 56px;
+  background: var(--accent);
+  color: white;
+  padding: 13px 15px;
+}
+[data-theme="dark"] .native-shell .study-start {
+  color: #17281c;
+}
+.native-shell .study-start .play-icon {
+  background: #ffffff22;
+}
+.native-shell .study-start > span:nth-child(2) {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.native-shell .study-start strong {
+  font-size: 14px;
+}
+.native-shell .study-start small {
+  font-size: 11px;
+}
+.native-shell .study-start:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.native-shell .collection-toolbar {
+  flex-direction: column;
+  gap: 16px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+.native-shell .section-title {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.native-shell .section-title h2 {
+  font-size: 17px;
+  font-weight: 650;
+}
+.native-shell .section-title > span {
+  font-size: 11px;
+}
+.native-shell .toolbar-actions {
+  gap: 10px;
+}
+.native-shell .search-field {
+  width: auto;
+  flex: 1;
+  border: 0;
+  border-radius: 13px;
+  background: var(--side);
+  padding: 0 13px;
+}
+.native-shell .search-field input {
+  font-size: 16px;
+  padding: 13px 0;
+}
+.native-shell .toolbar-actions .button {
+  border: 0;
+  border-radius: 13px;
+  min-height: 45px;
+  font-size: 12px;
+}
+.native-shell .folder-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--panel);
+  border-radius: 18px;
+  margin-bottom: 22px;
+}
+.native-shell .folder-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  transform: none;
+  margin: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+.native-shell .folder-card:last-child {
+  border: 0;
+}
+.native-shell .folder-open {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 20px;
+  column-gap: 13px;
+  padding: 17px 36px 17px 3px;
+  min-height: 84px;
+  align-items: center;
+  border-radius: 12px;
+}
+.native-shell .folder-open:hover {
+  background: var(--hover);
+}
+.native-shell .folder-symbol {
+  grid-row: 1 / 3;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  border-radius: 12px;
+}
+.native-shell .folder-open h3 {
+  grid-column: 2;
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+.native-shell .folder-open p {
+  grid-column: 2;
+  font-size: 11px;
+  margin: 0;
+}
+.native-shell .folder-arrow {
+  display: none;
+}
+.native-shell .folder-card > .item-menu {
+  top: 22px;
+  right: -1px;
+}
+.native-shell .item-menu summary {
+  width: 40px;
+  height: 40px;
+}
+.native-shell .card-row {
+  border: 0;
+  border-radius: 16px;
+  padding-right: 8px;
+}
+.native-shell .card-row-content {
+  min-height: 86px;
+  padding: 15px 12px;
+}
+.native-shell .card-row-text strong {
+  font-size: 14px;
+}
+.native-shell .card-row-text small {
+  font-size: 11px;
+}
+.native-shell .badge {
+  font-size: 10px;
+}
+.native-shell .empty-state {
+  border: 0;
+  background: transparent;
+  padding: 22px 12px 28px;
+  min-height: 0;
+}
+.native-shell .empty-state .eyebrow {
+  display: none;
+}
+.native-shell .empty-state h2 {
+  font-size: 22px;
+  font-weight: 600;
+}
+.native-shell .empty-state p {
+  font-size: 13px;
+  max-width: 310px;
+}
+.native-shell .empty-actions {
+  flex-direction: column;
+}
+.native-shell .empty-actions .button {
+  min-height: 44px;
+  font-size: 13px;
+  border-radius: 13px;
+}
+.native-shell .empty-art {
+  transform: scale(0.8);
+  height: 110px;
+  margin-bottom: 0;
+}
+.native-shell .collection-footer {
+  font-size: 10px;
+  margin-top: 22px;
+  line-height: 1.6;
+  align-items: flex-start;
+}
+.native-shell .collection-footer button {
+  font-size: 10px;
+}
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 600px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 96%, transparent);
+  backdrop-filter: blur(20px);
+  z-index: 18;
+}
+.bottom-nav button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 51px;
+  border: 0;
+  background: transparent;
+  border-radius: 13px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 550;
+}
+.bottom-nav button.active {
+  color: var(--accent);
+}
+.bottom-nav button.active svg {
+  stroke-width: 2.4;
+}
+.bottom-nav button:hover {
+  background: var(--hover);
+}
+.tab-dot {
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 12px);
+  height: 5px;
+  width: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.settings-group {
+  margin-bottom: 24px;
+}
+.settings-group h3 {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 550;
+  margin: 0 0 10px 8px;
+}
+.settings-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+  border: 0;
+  border-radius: 12px;
+  padding: 18px 14px;
+  text-align: left;
+  margin: 5px 0;
+  font-size: 14px;
+}
+.settings-row > span:nth-child(2) {
+  flex: 1;
+}
+.settings-row small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 4px;
+  color: var(--muted);
+}
+.theme-switch {
+  border-radius: 20px;
+  width: 43px;
+  height: 26px;
+  padding: 3px;
+  background: var(--line);
+  display: flex;
+  align-items: center;
+}
+.theme-switch i {
+  background: white;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px #0002;
+  transition: transform 0.2s;
+}
+.theme-switch.on {
+  background: var(--accent);
+}
+.theme-switch.on i {
+  transform: translateX(17px);
+}
+.settings-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+.app-version {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 27px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.app-version img {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+.app-version small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.native-shell .toast {
+  bottom: calc(84px + env(safe-area-inset-bottom));
+}
+.study-page {
+  max-width: 600px;
+  padding: calc(16px + env(safe-area-inset-top)) 20px
+    calc(25px + env(safe-area-inset-bottom));
+}
+.study-card {
+  border-radius: 22px;
+  border: 0;
+}
+.study-header .icon-button {
+  width: 44px;
+  height: 44px;
+  margin: 0;
+}
+.rating {
+  border-radius: 15px;
+  min-height: 89px;
+}
+@media (min-width: 700px) {
+  .native-shell {
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+  }
+  .bottom-nav {
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+  }
+}
+@media (max-width: 620px) {
+  .dialog {
+    margin: auto 0 0;
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - env(safe-area-inset-top) - 18px);
+    border-radius: 24px 24px 0 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .dialog.wide {
+    width: 100%;
+  }
+  .dialog-head {
+    padding: 19px 20px 14px;
+  }
+  .dialog-head .icon-button {
+    border-radius: 50%;
+    background: var(--bg);
+    width: 36px;
+    height: 36px;
+  }
+  .dialog-body {
+    padding: 20px;
+  }
+  .dialog-actions .button {
+    min-height: 44px;
+    border-radius: 12px;
+  }
+  .native-shell .main-content {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .native-shell .page-heading h1 {
+    font-size: 28px;
+  }
+  .native-shell .page-heading p {
+    font-size: 11px;
+  }
+  .native-shell .page-heading .button {
+    font-size: 11px;
+    gap: 5px;
+    padding: 11px 10px;
+  }
+  .native-shell .stat span:not(.stat-icon) {
+    font-size: 10px;
+  }
+  .native-shell .study-start strong {
+    font-size: 13px;
+  }
+  .native-shell .study-start small {
+    font-size: 10px;
+  }
+  .native-shell .native-crumbs {
+    padding: 0 22px;
+  }
+}

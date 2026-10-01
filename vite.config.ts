@@ -4,6 +4,9 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   base: "./",
+  build: {
+    rolldownOptions: { input: { website: "index.html", app: "app.html" } },
+  },
   plugins: [
     react(),
     VitePWA({
@@ -15,7 +18,8 @@ export default defineConfig({
         description:
           "Dein Wissen. In deinem Tempo. Karteikarten, die bei dir bleiben.",
         lang: "de",
-        start_url: "./",
+        id: "./",
+        start_url: "./app.html",
         scope: "./",
         display: "standalone",
         theme_color: "#254d42",
