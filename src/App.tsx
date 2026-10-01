@@ -298,55 +298,57 @@ export default function App() {
               </p>
             </div>
           </div>
-          <section className="overview" aria-label="Lernübersicht">
-            <div className="stats">
-              <div className="stat">
-                <span className="stat-icon">
-                  <Clock3 size={19} />
-                </span>
-                <div>
-                  <strong>{due}</strong>
-                  <span>Jetzt fällig</span>
+          {folder && (
+            <section className="overview" aria-label="Lernübersicht">
+              <div className="stats">
+                <div className="stat">
+                  <span className="stat-icon">
+                    <Clock3 size={19} />
+                  </span>
+                  <div>
+                    <strong>{due}</strong>
+                    <span>Jetzt fällig</span>
+                  </div>
+                </div>
+                <div className="stat">
+                  <span className="stat-icon">
+                    <Sparkles size={19} />
+                  </span>
+                  <div>
+                    <strong>{fresh}</strong>
+                    <span>Neue Karten</span>
+                  </div>
+                </div>
+                <div className="stat">
+                  <span className="stat-icon">
+                    <Check size={19} />
+                  </span>
+                  <div>
+                    <strong>{todayCount}</strong>
+                    <span>Heute wiederholt</span>
+                  </div>
                 </div>
               </div>
-              <div className="stat">
-                <span className="stat-icon">
-                  <Sparkles size={19} />
+              <button
+                className="study-start"
+                onClick={() => setStudying(true)}
+                disabled={!scope.length}
+              >
+                <span className="play-icon">
+                  <Play size={16} fill="currentColor" />
                 </span>
-                <div>
-                  <strong>{fresh}</strong>
-                  <span>Neue Karten</span>
-                </div>
-              </div>
-              <div className="stat">
-                <span className="stat-icon">
-                  <Check size={19} />
+                <span>
+                  <strong>Lernen starten</strong>
+                  <small>
+                    {due + fresh
+                      ? `${due + fresh} Karten bereit`
+                      : "In deinem Tempo"}
+                  </small>
                 </span>
-                <div>
-                  <strong>{todayCount}</strong>
-                  <span>Heute wiederholt</span>
-                </div>
-              </div>
-            </div>
-            <button
-              className="study-start"
-              onClick={() => setStudying(true)}
-              disabled={!scope.length}
-            >
-              <span className="play-icon">
-                <Play size={16} fill="currentColor" />
-              </span>
-              <span>
-                <strong>Lernen starten</strong>
-                <small>
-                  {due + fresh
-                    ? `${due + fresh} Karten bereit`
-                    : "In deinem Tempo"}
-                </small>
-              </span>
-              <ArrowRight size={19} />
-            </button>
-          </section>
+                <ArrowRight size={19} />
+              </button>
+            </section>
+          )}
           <div className="collection-toolbar">
             <div className="section-title">
               <h2>{query ? "Suchergebnisse" : "Deine Inhalte"}</h2>
