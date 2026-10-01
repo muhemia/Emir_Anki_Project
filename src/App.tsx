@@ -101,6 +101,7 @@ function ItemMenu({
 export default function App() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [cardsExpanded, setCardsExpanded] = useState(false);
   const [dialog, setDialog] = useState<Dialog>();
   const [studying, setStudying] = useState(false);
   const [toast, setToast] = useState("");
@@ -199,6 +200,7 @@ export default function App() {
   const navigate = (folderId: string | null) => {
     setCurrentId(folderId);
     setSearch("");
+    setCardsExpanded(false);
   };
   const saved = (message: string) => {
     setDialog(undefined);
@@ -435,61 +437,95 @@ export default function App() {
           )}
           {visibleCards.length > 0 && (
             <section className="cards-section" aria-label="Karteikarten">
-              <div className="cards-list-head">
-                <span>KARTE</span>
-                <span>LERNSTAND</span>
-              </div>
-              {visibleCards.map((c) => (
-                <article className="card-row" key={c.id}>
-                  <button
-                    className="card-row-content"
-                    onClick={() => open({ kind: "preview", card: c })}
-                  >
-                    <span className="card-symbol">
-                      <Layers size={19} />
-                    </span>
-                    <span className="card-row-text">
-                      <strong>{c.front || "Bildkarte"}</strong>
-                      <small>
-                        {c.back || "Antwort mit Bild"}
-                        {c.frontImages.length + c.backImages.length > 0 && (
-                          <span className="has-image">
-                            <Image size={12} />
-                            {c.frontImages.length + c.backImages.length}
+              <button
+                className="cards-toggle"
+                aria-expanded={cardsExpanded}
+                aria-controls="card-list"
+                aria-label={
+                  cardsExpanded ? "Karten ausblenden" : "Karten anzeigen"
+                }
+                onClick={() => {
+                  closeMenus();
+                  setCardsExpanded(!cardsExpanded);
+                }}
+              >
+                <ChevronRight
+                  size={20}
+                  className={cardsExpanded ? "expanded" : ""}
+                />
+                <span>Karten</span>
+                <span className="cards-count">{visibleCards.length}</span>
+              </button>
+              <div
+                id="card-list"
+                key={`${currentId}:${query}`}
+                className="cards-scroll"
+                role="region"
+                aria-label="Kartenliste"
+                tabIndex={0}
+                hidden={!cardsExpanded}
+              >
+                {cardsExpanded && (
+                  <>
+                    <div className="cards-list-head">
+                      <span>FRAGE</span>
+                      <span>LERNSTAND</span>
+                    </div>
+                    {visibleCards.map((c) => (
+                      <article className="card-row" key={c.id}>
+                        <button
+                          className="card-row-content"
+                          onClick={() => open({ kind: "preview", card: c })}
+                        >
+                          <span className="card-symbol">
+                            <Layers size={19} />
                           </span>
-                        )}
-                      </small>
-                    </span>
-                    <span
-                      className={`badge ${c.schedule.state === State.New ? "new" : isDue(c, now) ? "due" : ""}`}
-                    >
-                      {c.schedule.state === State.New
-                        ? "Neu"
-                        : isDue(c, now)
-                          ? "Fällig"
-                          : new Date(c.schedule.due).toLocaleDateString(
-                              "de-DE",
-                              { day: "2-digit", month: "2-digit" },
-                            )}
-                    </span>
-                  </button>
-                  <ItemMenu
-                    label={c.front || "Bildkarte"}
-                    onEdit={() => open({ kind: "card", card: c })}
-                    onMove={() =>
-                      open({ kind: "move", item: "card", id: c.id })
-                    }
-                    onDelete={() =>
-                      open({
-                        kind: "delete",
-                        item: "card",
-                        id: c.id,
-                        name: c.front || "Bildkarte",
-                      })
-                    }
-                  />
-                </article>
-              ))}
+                          <span className="card-row-text">
+                            <strong>{c.front || "Bildkarte"}</strong>
+                            <small>
+                              {c.back || "Antwort mit Bild"}
+                              {c.frontImages.length + c.backImages.length >
+                                0 && (
+                                <span className="has-image">
+                                  <Image size={12} />
+                                  {c.frontImages.length + c.backImages.length}
+                                </span>
+                              )}
+                            </small>
+                          </span>
+                          <span
+                            className={`badge ${c.schedule.state === State.New ? "new" : isDue(c, now) ? "due" : ""}`}
+                          >
+                            {c.schedule.state === State.New
+                              ? "Neu"
+                              : isDue(c, now)
+                                ? "Fällig"
+                                : new Date(c.schedule.due).toLocaleDateString(
+                                    "de-DE",
+                                    { day: "2-digit", month: "2-digit" },
+                                  )}
+                          </span>
+                        </button>
+                        <ItemMenu
+                          label={c.front || "Bildkarte"}
+                          onEdit={() => open({ kind: "card", card: c })}
+                          onMove={() =>
+                            open({ kind: "move", item: "card", id: c.id })
+                          }
+                          onDelete={() =>
+                            open({
+                              kind: "delete",
+                              item: "card",
+                              id: c.id,
+                              name: c.front || "Bildkarte",
+                            })
+                          }
+                        />
+                      </article>
+                    ))}
+                  </>
+                )}
+              </div>
             </section>
           )}
           {!visibleFolders.length && !visibleCards.length && (

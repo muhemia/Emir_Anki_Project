@@ -38,6 +38,7 @@ Der Entwicklungsserver wird im Terminal angezeigt (normalerweise http://127.0.0.
 - Ordner erstellen, umbenennen, einfärben, verschieben und mit Bestätigung löschen.
 - Ganze Teilbäume zwischen oberster Ebene und Unterordnern verschieben. Zyklen werden verhindert.
 - Karten mit Text und/oder Bildern auf beiden Seiten; bearbeiten, ansehen, verschieben und löschen.
+- Kartenlisten sind zunächst eingeklappt. „Karten“ mit Pfeil und Anzahl öffnet einen begrenzten Scrollbereich; beim Ordnerwechsel wird er wieder geschlossen. Ordner bleiben direkt sichtbar.
 - Suche in Frage, Antwort und Ordnernamen innerhalb des ausgewählten Teilbaums.
 - Lernen bezieht sich auf den ausgewählten Ordner einschließlich aller Unterordner und direkter Karten.
 - Neue und fällige Karten, ohne Tageslimit; fällige Wiederholungen vor neuen Karten.

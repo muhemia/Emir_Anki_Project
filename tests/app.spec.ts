@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
+import JSZip from "jszip";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 
@@ -92,7 +93,20 @@ async function backup(page: Page) {
     .getByRole("button", { name: "Sicherung erstellen", exact: false })
     .click();
 }
+async function showCards(page: Page) {
+  const toggle = page.getByRole("button", {
+    name: "Karten anzeigen",
+    exact: true,
+  });
+  if (await toggle.isVisible()) await toggle.click();
+}
 async function actions(page: Page, name: string, action: string) {
+  if (
+    !(await page
+      .getByLabel(`Aktionen für ${name}`, { exact: true })
+      .isVisible())
+  )
+    await showCards(page);
   await page.getByLabel(`Aktionen für ${name}`, { exact: true }).click();
   await page
     .locator("details[open]")
@@ -191,6 +205,7 @@ test("Ordner und Karten verschieben, Zyklen verhindern und bearbeiten", async ({
   await page.getByRole("button", { name: "Hierher verschieben" }).click();
   await expect(page.locator(".card-row")).toHaveCount(0);
   await root(page);
+  await showCards(page);
   await expect(page.locator(".card-row")).toContainText("Geänderte Frage");
   await actions(page, "Geänderte Frage", "Löschen");
   await page.getByRole("button", { name: "Endgültig löschen" }).click();
@@ -294,6 +309,7 @@ test("Export, zweimal additiver Import, Bilder und vollständiger Offline-Neusta
       }),
     ).toBeVisible();
     await openFolder(page, "Biologie (2)");
+    await showCards(page);
     await page.locator(".card-row-content").click();
     await expect(page.getByRole("dialog").getByRole("img")).toBeVisible();
     await page.getByRole("button", { name: "Fertig" }).click();
@@ -310,6 +326,7 @@ test("Export, zweimal additiver Import, Bilder und vollständiger Offline-Neusta
     if (browserName !== "webkit") await context.setOffline(true);
     await offlineReload(page, browserName);
     await openFolder(page, "Biologie (2)");
+    await showCards(page);
     await page.locator(".card-row-content").click();
     await expect(page.getByRole("dialog").getByRole("img")).toBeVisible();
     expect(
@@ -322,6 +339,7 @@ test("Export, zweimal additiver Import, Bilder und vollständiger Offline-Neusta
     await createCard(page, "Offline erstellt", "Offline gespeichert");
     await offlineReload(page, browserName);
     await openFolder(page, "Biologie (2)");
+    await showCards(page);
     await expect(page.locator(".card-row")).toHaveCount(2);
     await context.setOffline(false);
   } finally {
@@ -384,4 +402,97 @@ test("Ein installiertes Home-Screen-Symbol öffnet auch von der Startadresse die
   await expect(
     page.getByRole("button", { name: "App installieren", exact: true }),
   ).toHaveCount(0);
+});
+
+test("500 Karten bleiben eingeklappt und lassen sich im eigenen Bereich durchsuchen", async ({
+  page,
+}) => {
+  const zip = new JSZip();
+  const now = Date.now();
+  zip.file(
+    "collection.json",
+    JSON.stringify({
+      format: "emir-cards",
+      version: 1,
+      kind: "share",
+      createdAt: new Date(now).toISOString(),
+      folders: [
+        {
+          id: "large-deck",
+          parentId: null,
+          name: "Großes Fach",
+          color: "sage",
+          createdAt: now,
+        },
+      ],
+      cards: Array.from({ length: 500 }, (_, i) => ({
+        id: `card-${i}`,
+        folderId: "large-deck",
+        front: `Frage ${String(i + 1).padStart(3, "0")}`,
+        back: `Antwort ${i + 1}`,
+        frontImages: [],
+        backImages: [],
+        createdAt: now - i,
+        updatedAt: now,
+      })),
+      media: [],
+      reviews: [],
+    }),
+  );
+  const buffer = await zip.generateAsync({ type: "nodebuffer" });
+  await page.getByRole("button", { name: "Neuer Ordner", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Ordner importieren", exact: true })
+    .click();
+  await page
+    .getByLabel("Sicherungsdatei auswählen", { exact: true })
+    .setInputFiles({
+      name: "500-karten.zip",
+      mimeType: "application/zip",
+      buffer,
+    });
+  await page.getByRole("button", { name: "Zur Sammlung hinzufügen" }).click();
+  await openFolder(page, "Großes Fach");
+  await createFolder(page, "Sichtbarer Unterordner");
+  await expect(
+    page.getByRole("button", { name: "Ordner Sichtbarer Unterordner öffnen" }),
+  ).toBeVisible();
+  const toggle = page.locator(".cards-toggle");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(toggle).toContainText("500");
+  await expect(page.locator(".card-row")).toHaveCount(0);
+  await toggle.click();
+  const list = page.getByRole("region", { name: "Kartenliste", exact: true });
+  await expect(list).toBeVisible();
+  await expect(list.locator(".card-row")).toHaveCount(500);
+  const size = await list.evaluate((el) => ({
+    height: el.clientHeight,
+    content: el.scrollHeight,
+  }));
+  expect(size.height).toBeLessThanOrEqual(360);
+  expect(size.content).toBeGreaterThan(size.height * 10);
+  await list.evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await list.locator(".card-row-content").last().click();
+  await expect(page.getByRole("dialog")).toContainText("Frage 500");
+  await page.getByRole("button", { name: "Fertig", exact: true }).click();
+  await actions(page, "Frage 500", "Bearbeiten");
+  await expect(page.getByLabel("Deine Frage", { exact: false })).toHaveValue(
+    "Frage 500",
+  );
+  await page.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  await toggle.click();
+  await expect(list).toBeHidden();
+  await expect(page.locator(".card-row")).toHaveCount(0);
+  await toggle.click();
+  await expect(list).toBeVisible();
+  await root(page);
+  await openFolder(page, "Großes Fach");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await page.getByLabel("Sammlung durchsuchen").fill("Frage 250");
+  await expect(toggle).toContainText("1");
+  await toggle.click();
+  await expect(list.locator(".card-row")).toHaveCount(1);
+  await expect(list).toContainText("Frage 250");
 });

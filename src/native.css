@@ -247,6 +247,75 @@
   width: 40px;
   height: 40px;
 }
+.cards-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 4px;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  text-align: left;
+  font-size: 16px;
+  font-weight: 600;
+}
+.cards-toggle svg {
+  transition: transform 0.15s;
+}
+.cards-toggle svg.expanded {
+  transform: rotate(90deg);
+}
+.cards-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+.cards-scroll {
+  max-height: min(360px, 50dvh);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  padding: 4px;
+  scroll-padding-block: 4px;
+  border-radius: 16px;
+}
+.cards-scroll .cards-list-head {
+  padding-top: 8px;
+}
+.native-shell .cards-scroll .card-row {
+  display: block;
+  position: relative;
+  padding: 0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 86px;
+}
+.cards-scroll .card-row-content {
+  width: calc(100% - 48px);
+}
+.cards-scroll .item-menu {
+  position: static;
+}
+.cards-scroll .item-menu summary {
+  position: absolute;
+  top: 23px;
+  right: 8px;
+}
+.cards-scroll .menu-panel {
+  position: static;
+  width: auto;
+  margin: 0 8px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  box-shadow: none;
+}
+.cards-scroll .menu-panel button {
+  width: auto;
+  flex: 1;
+  min-height: 44px;
+}
 .native-shell .card-row {
   border: 0;
   border-radius: 16px;
