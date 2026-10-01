@@ -276,10 +276,13 @@ test("Export, zweimal additiver Import, Bilder und vollständiger Offline-Neusta
         exact: true,
       }),
     ).toBeVisible();
-    await backup(page);
     await page
-      .getByRole("button", { name: "Importieren", exact: true })
+      .getByRole("button", { name: "Neuer Ordner", exact: true })
       .click();
+    await page
+      .getByRole("button", { name: "Ordner importieren", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toHaveCount(1);
     await page
       .getByLabel("Sicherungsdatei auswählen", { exact: true })
       .setInputFiles(file!);

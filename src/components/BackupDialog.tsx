@@ -19,16 +19,18 @@ export function BackupDialog({
   folderId,
   folderName,
   hasContent,
+  initialTab = "export",
   onClose,
   onSaved,
 }: {
   folderId: string | null;
   folderName: string;
   hasContent: boolean;
+  initialTab?: "export" | "import";
   onClose: () => void;
   onSaved: (message: string) => void;
 }) {
-  const [tab, setTab] = useState<"export" | "import">("export");
+  const [tab, setTab] = useState<"export" | "import">(initialTab);
   const [kind, setKind] = useState<"backup" | "share">("backup");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

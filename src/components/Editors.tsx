@@ -5,6 +5,7 @@ import {
   Trash2,
   FolderOpen,
   ArrowUpRight,
+  Upload,
 } from "lucide-react";
 import { db } from "../db";
 import {
@@ -24,11 +25,13 @@ export function FolderEditor({
   parentId,
   onClose,
   onSaved,
+  onImport,
 }: {
   folder?: Folder;
   parentId: string | null;
   onClose: () => void;
   onSaved: () => void;
+  onImport: () => void;
 }) {
   const [name, setName] = useState(folder?.name || "");
   const [color, setColor] = useState(folder?.color || "sage");
@@ -105,6 +108,20 @@ export function FolderEditor({
             {busy ? "Speichern …" : folder ? "Speichern" : "Ordner erstellen"}
           </button>
         </div>
+        {!folder && (
+          <div className="folder-import">
+            <button
+              type="button"
+              className="button secondary"
+              onClick={onImport}
+              disabled={busy}
+            >
+              <Upload size={18} />
+              Ordner importieren
+            </button>
+            <p className="muted">Aus einer Emir-Cards-ZIP-Datei hinzufügen.</p>
+          </div>
+        )}
       </form>
     </Modal>
   );

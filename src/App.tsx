@@ -42,7 +42,7 @@ type Dialog =
   | { kind: "card"; card?: Flashcard }
   | { kind: "move"; item: "folder" | "card"; id: string }
   | { kind: "delete"; item: "folder" | "card"; id: string; name: string }
-  | { kind: "backup" }
+  | { kind: "backup"; tab?: "export" | "import" }
   | { kind: "settings" }
   | { kind: "preview"; card: Flashcard };
 function closeMenus() {
@@ -540,7 +540,7 @@ export default function App() {
                     </button>
                     <button
                       className="button ghost"
-                      onClick={() => open({ kind: "backup" })}
+                      onClick={() => open({ kind: "backup", tab: "import" })}
                     >
                       <Upload size={16} />
                       Sammlung importieren
@@ -576,6 +576,7 @@ export default function App() {
         <FolderEditor
           folder={dialog.folder}
           parentId={currentId}
+          onImport={() => open({ kind: "backup", tab: "import" })}
           onClose={() => setDialog(undefined)}
           onSaved={() =>
             saved(
@@ -617,6 +618,7 @@ export default function App() {
       )}
       {dialog?.kind === "backup" && (
         <BackupDialog
+          initialTab={dialog.tab}
           folderId={currentId}
           folderName={folder?.name || "Sammlung"}
           hasContent={!!(folders.length || cards.length)}
