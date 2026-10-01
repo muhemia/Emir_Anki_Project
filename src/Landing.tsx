@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import {
   ArrowRight,
-  BookOpen,
   Check,
   Download,
   Layers,
@@ -156,10 +155,6 @@ export default function Landing() {
                 <span>
                   <Layers size={20} />
                   Sammlung
-                </span>
-                <span>
-                  <BookOpen size={20} />
-                  Lernen
                 </span>
                 <span>
                   <Settings2 size={20} />

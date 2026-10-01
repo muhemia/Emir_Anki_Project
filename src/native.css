@@ -163,9 +163,13 @@
   font-size: 11px;
 }
 .native-shell .toolbar-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 .native-shell .search-field {
+  grid-column: 1 / -1;
+  min-width: 0;
   width: auto;
   flex: 1;
   border: 0;
@@ -178,6 +182,7 @@
   padding: 13px 0;
 }
 .native-shell .toolbar-actions .button {
+  justify-content: center;
   border: 0;
   border-radius: 13px;
   min-height: 45px;
@@ -307,7 +312,7 @@
   width: 100%;
   max-width: 600px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--panel) 96%, transparent);
@@ -337,15 +342,6 @@
 }
 .bottom-nav button:hover {
   background: var(--hover);
-}
-.tab-dot {
-  position: absolute;
-  top: 4px;
-  left: calc(50% + 12px);
-  height: 5px;
-  width: 5px;
-  border-radius: 50%;
-  background: var(--accent);
 }
 .folder-import {
   margin-top: 24px;

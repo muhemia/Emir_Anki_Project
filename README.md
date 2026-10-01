@@ -27,7 +27,7 @@ Der Entwicklungsserver wird im Terminal angezeigt (normalerweise http://127.0.0.
 ## Installationsseite und App
 
 - **http://localhost:4173/** ist die eigene Webseite zum Installieren, mit Anleitung für iPhone und Android und einem Link zum Ausprobieren.
-- **http://localhost:4173/app.html** ist die eigentliche Lern-App. Ihre Navigation liegt unten (Sammlung, Lernen, Mehr); Einstellungen, Hell-/Dunkelmodus und Sicherungen befinden sich unter Mehr. Sie hat keinen Drawer und keinen Installationsbutton.
+- **http://localhost:4173/app.html** ist die eigentliche Lern-App. Ihre Navigation liegt unten (Sammlung, Mehr); Einstellungen, Hell-/Dunkelmodus und Sicherungen befinden sich unter Mehr. „Lernen starten“ befindet sich in der Lernübersicht des geöffneten Themas. „Neue Karte“ und „Neuer Ordner“ stehen gemeinsam unter der Suche. Sie hat keinen Drawer und keinen Installationsbutton.
 - Installierte PWA-Symbole starten direkt in der Lern-App. Das Manifest verweist auf `app.html`; bereits vorhandene Home-Screen-Verknüpfungen auf die Startseite werden im Standalone-Modus ebenfalls direkt zur Lernansicht geführt.
 - Beide Ansichten verwenden dieselbe Website-Adresse und dieselbe IndexedDB. Ein Wechsel zwischen ihnen überschreibt oder verschiebt keine Karten. Der bisherige PWA-Identifier bleibt erhalten.
 - Die separate Webseite verändert die Installationstechnik nicht: Es bleibt eine PWA, keine native IPA-/APK-Datei. Der Browser installiert die App; unter iOS ist der Schritt über das Teilen-Menü erforderlich.

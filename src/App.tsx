@@ -4,7 +4,6 @@ import { useRegisterSW } from "virtual:pwa-register/react";
 import {
   ArrowRight,
   ArrowUpRight,
-  BookOpen,
   Check,
   ArrowLeft,
   Settings2,
@@ -298,13 +297,6 @@ export default function App() {
                   : "Deine Themen. Dein Tempo."}
               </p>
             </div>
-            <button
-              className="button primary"
-              onClick={() => open({ kind: "card" })}
-            >
-              <Plus size={18} />
-              Neue Karte
-            </button>
           </div>
           <section className="overview" aria-label="Lernübersicht">
             <div className="stats">
@@ -385,6 +377,13 @@ export default function App() {
               >
                 <FolderPlus size={17} />
                 <span>Neuer Ordner</span>
+              </button>
+              <button
+                className="button primary"
+                onClick={() => open({ kind: "card" })}
+              >
+                <Plus size={18} />
+                Neue Karte
               </button>
             </div>
           </div>
@@ -781,11 +780,6 @@ export default function App() {
         >
           <Layers size={23} />
           <span>Sammlung</span>
-        </button>
-        <button onClick={() => setStudying(true)}>
-          <BookOpen size={23} />
-          <span>Lernen</span>
-          {due + fresh > 0 && <i className="tab-dot" />}
         </button>
         <button
           className={dialog?.kind === "settings" ? "active" : ""}
