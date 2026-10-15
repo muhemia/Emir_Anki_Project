@@ -9,7 +9,6 @@ import {
   Settings2,
   ChevronRight,
   Clock3,
-  Folder as FolderIcon,
   FolderPlus,
   HardDrive,
   Image,
@@ -29,15 +28,17 @@ import {
 } from "lucide-react";
 import { State } from "ts-fsrs";
 import { db } from "./db";
-import { deleteContent, isDue, scopedCards, subtree } from "./domain";
+import { isNative, saveNativeTheme } from "./native-storage";
+import { compareFolders, deleteContent, isDue, reorderFolder, scopedCards, subtree } from "./domain";
 import type { Flashcard, Folder } from "./types";
 import { FolderEditor, CardEditor, MoveDialog } from "./components/Editors";
 import { BackupDialog } from "./components/BackupDialog";
 import { Study } from "./components/Study";
+import { FolderTreeNode } from "./components/FolderTree";
 import { Modal, CardImage, ErrorMessage, errorText } from "./components/ui";
 
 type Dialog =
-  | { kind: "folder"; folder?: Folder }
+  | { kind: "folder"; folder?: Folder; parentId?: string; fromTree?: boolean }
   | { kind: "card"; card?: Flashcard }
   | { kind: "move"; item: "folder" | "card"; id: string }
   | { kind: "delete"; item: "folder" | "card"; id: string; name: string }
@@ -102,6 +103,9 @@ export default function App() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [cardsExpanded, setCardsExpanded] = useState(false);
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [dialog, setDialog] = useState<Dialog>();
   const [studying, setStudying] = useState(false);
   const [toast, setToast] = useState("");
@@ -142,6 +146,7 @@ export default function App() {
     try {
       localStorage.setItem("emir-theme", theme);
     } catch {}
+    void saveNativeTheme(theme);
   }, [theme]);
   useEffect(() => {
     const fn = (e: MouseEvent) => {
@@ -188,7 +193,7 @@ export default function App() {
           f.name.toLocaleLowerCase("de").includes(query)
         : f.parentId === currentId,
     )
-    .sort((a, b) => a.name.localeCompare(b.name, "de"));
+    .sort(compareFolders);
   const crumbs: Folder[] = [];
   let ancestor = folder;
   const seen = new Set<string>();
@@ -201,6 +206,15 @@ export default function App() {
     setCurrentId(folderId);
     setSearch("");
     setCardsExpanded(false);
+  };
+  const toggleFolder = (folderId: string) => {
+    closeMenus();
+    setExpandedFolderIds((current) => {
+      const next = new Set(current);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
   };
   const saved = (message: string) => {
     setDialog(undefined);
@@ -287,7 +301,7 @@ export default function App() {
               </button>
             </div>
           )}
-          <div className="page-heading">
+          <div className={`page-heading ${folder ? "" : "collection-heading"}`}>
             <div>
               <h1>
                 {title}
@@ -299,6 +313,14 @@ export default function App() {
                   : "Deine Themen. Dein Tempo."}
               </p>
             </div>
+            {!folder && (
+              <button
+                className="button primary new-root-folder"
+                onClick={() => open({ kind: "folder" })}
+              >
+                <FolderPlus size={18} /> Neuer Ordner
+              </button>
+            )}
           </div>
           {folder && (
             <section className="overview" aria-label="Lernübersicht">
@@ -351,7 +373,7 @@ export default function App() {
               </button>
             </section>
           )}
-          <div className="collection-toolbar">
+          {folder && <div className="collection-toolbar">
             <div className="section-title">
               <h2>{query ? "Suchergebnisse" : "Deine Inhalte"}</h2>
               <span>{scope.length} Karten insgesamt</span>
@@ -390,49 +412,40 @@ export default function App() {
                 Neue Karte
               </button>
             </div>
-          </div>
+          </div>}
           {visibleFolders.length > 0 && (
-            <section className="folder-grid" aria-label="Ordner">
-              {visibleFolders.map((f) => {
-                const contents = scopedCards(cards, folders, f.id);
-                const ready = contents.filter((c) => isDue(c, now)).length;
-                return (
-                  <article className="folder-card" key={f.id}>
-                    <button
-                      className="folder-open"
-                      onClick={() => navigate(f.id)}
-                      aria-label={`Ordner ${f.name} öffnen`}
-                    >
-                      <div className={`folder-symbol ${f.color}`}>
-                        <FolderIcon size={24} strokeWidth={1.6} />
-                      </div>
-                      <h3>{f.name}</h3>
-                      <p>
-                        {contents.length}{" "}
-                        {contents.length === 1 ? "Karte" : "Karten"}
-                        <span>·</span>
-                        {ready > 0 ? `${ready} bereit` : "Alles im Blick"}
-                      </p>
-                      <ArrowUpRight size={17} className="folder-arrow" />
-                    </button>
-                    <ItemMenu
-                      label={f.name}
-                      onEdit={() => open({ kind: "folder", folder: f })}
-                      onMove={() =>
-                        open({ kind: "move", item: "folder", id: f.id })
-                      }
-                      onDelete={() =>
-                        open({
-                          kind: "delete",
-                          item: "folder",
-                          id: f.id,
-                          name: f.name,
-                        })
-                      }
-                    />
-                  </article>
-                );
-              })}
+            <section className="folder-tree" aria-label="Ordner">
+              {visibleFolders.map((f) => (
+                <FolderTreeNode
+                  key={f.id}
+                  folder={f}
+                  folders={folders}
+                  cards={cards}
+                  now={now}
+                  expandedIds={expandedFolderIds}
+                  showChildren={!query}
+                  onToggle={toggleFolder}
+                  onOpen={navigate}
+                  onAdd={(parentId) =>
+                    open({ kind: "folder", parentId, fromTree: true })
+                  }
+                  onEdit={(item) => open({ kind: "folder", folder: item })}
+                  onMove={(id) => open({ kind: "move", item: "folder", id })}
+                  onDelete={(item) =>
+                    open({
+                      kind: "delete",
+                      item: "folder",
+                      id: item.id,
+                      name: item.name,
+                    })
+                  }
+                  onReorder={(id, direction) =>
+                    void reorderFolder(id, direction).catch((e) =>
+                      setToast(errorText(e)),
+                    )
+                  }
+                />
+              ))}
             </section>
           )}
           {visibleCards.length > 0 && (
@@ -556,7 +569,9 @@ export default function App() {
               <p>
                 {query
                   ? "Probiere einen anderen Suchbegriff. Wir suchen auch in allen Unterordnern."
-                  : "Erstelle einen Ordner für dein erstes Thema oder starte direkt mit einer Karte. Der Rest wächst mit dir."}
+                  : folder
+                    ? "Erstelle einen Unterordner oder füge hier eine Karte hinzu."
+                    : "Erstelle einen Ordner für dein erstes Thema. Der Rest wächst mit dir."}
               </p>
               <div className="empty-actions">
                 {query ? (
@@ -612,7 +627,8 @@ export default function App() {
       {dialog?.kind === "folder" && (
         <FolderEditor
           folder={dialog.folder}
-          parentId={currentId}
+          parentId={dialog.parentId ?? currentId}
+          fromTree={dialog.fromTree}
           onImport={() => open({ kind: "backup", tab: "import" })}
           onClose={() => setDialog(undefined)}
           onSaved={() =>
@@ -772,7 +788,7 @@ export default function App() {
                 </span>
                 <ChevronRight size={18} />
               </button>
-              <button
+              {!isNative && <button
                 className="settings-row"
                 onClick={async () => {
                   const ok = await navigator.storage
@@ -790,7 +806,7 @@ export default function App() {
                   Speicher schützen<small>Dauerhaften Speicher anfragen</small>
                 </span>
                 <ChevronRight size={18} />
-              </button>
+              </button>}
             </section>
             <p className="settings-note">
               Deine Karten liegen auf diesem Gerät. Sichere sie regelmäßig als

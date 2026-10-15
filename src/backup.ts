@@ -1,7 +1,9 @@
 import JSZip from "jszip";
 import { z } from "zod";
 import { db } from "./db";
+import { persistNative } from "./native-storage";
 import {
+  compareFolders,
   hydrateSchedule,
   id,
   newSchedule,
@@ -51,6 +53,7 @@ const packageSchema = z.object({
         name: z.string().trim().min(1).max(120),
         color: z.enum(["sage", "blue", "amber", "rose", "violet", "stone"]),
         createdAt: finite,
+        sortOrder: finite.int().optional(),
       }),
     )
     .max(10000),
@@ -335,6 +338,18 @@ export async function commitImport(
       const cardIds = new Map(data.cards.map((c) => [c.id, id()]));
       const mediaIds = new Map(data.media.map((m) => [m.id, id()]));
       const existing = await database.folders.toArray();
+      const rootOffset = Math.max(
+        -1,
+        ...existing
+          .filter((folder) => folder.parentId === target)
+          .map((folder) => folder.sortOrder ?? -1),
+      ) + 1;
+      const rootOrders = new Map(
+        data.folders
+          .filter((folder) => folder.parentId === null)
+          .sort(compareFolders)
+          .map((folder, index) => [folder.id, rootOffset + index]),
+      );
       const folders: Folder[] = [];
       for (const folder of data.folders) {
         const parentId =
@@ -347,6 +362,10 @@ export async function commitImport(
           id: folderIds.get(folder.id)!,
           parentId,
           name: uniqueName(folder.name, names),
+          sortOrder:
+            folder.parentId === null
+              ? rootOrders.get(folder.id)
+              : folder.sortOrder,
         });
       }
       const cards: Flashcard[] = data.cards.map((c) => ({
@@ -382,5 +401,6 @@ export async function commitImport(
       await database.reviews.bulkAdd(reviews);
     },
   );
+  if (database === db) await persistNative();
   return { folders: data.folders.length, cards: data.cards.length };
 }

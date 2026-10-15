@@ -1,6 +1,24 @@
 # Emir Cards
 
-Eine lokale Karteikarten-App für iPhone, Android und Computer. React, TypeScript und Vite als installierbare PWA. Keine Anmeldung, keine API, keine Cloud-Datenbank, keine Analyse-Dienste und kein Anwendungsbackend. Die App startet leer.
+Eine lokale Karteikarten-App für iPhone und Computer. React, TypeScript und Vite als PWA und als native iOS-App mit Capacitor. Keine Anmeldung, keine API, keine Cloud-Datenbank, keine Analyse-Dienste und kein Anwendungsbackend. Die App startet leer.
+
+## Native iOS-App auf dem eigenen iPhone
+
+Voraussetzungen: macOS mit Xcode, Node.js 22 oder neuer und ein iPhone mit aktiviertem Entwicklermodus. Die App verwendet Capacitor 8, `com.muhemia.emircards` als Bundle-ID und lädt im regulären Build ausschließlich Dateien aus dem App-Paket. Ein lokaler Server und Internet sind nach der Installation nicht nötig.
+
+```sh
+npm ci
+npm run ios:sync
+npm run ios:open
+```
+
+In Xcode das Projekt **App** und das Ziel **App** auswählen, dann unter **Signing & Capabilities** „Automatically manage signing“ aktivieren und bei **Team** die eigene Apple-ID als „Personal Team“ wählen. Falls Xcode die Bundle-ID als belegt meldet, sie unter **Bundle Identifier** auf eine eigene eindeutige ID ändern. Das iPhone per Kabel verbinden, auf dem Gerät „Diesem Computer vertrauen“ und unter **Einstellungen → Datenschutz & Sicherheit → Entwicklermodus** den Entwicklermodus aktivieren. In Xcode das iPhone als Ziel auswählen und **Run** drücken. Falls iOS nach einer Entwicklerfreigabe fragt, die angezeigten Schritte in **Einstellungen → Allgemein → VPN & Geräteverwaltung** ausführen. Eine kostenpflichtige Mitgliedschaft oder App-Store-Veröffentlichung ist für diese persönliche Installation nicht nötig. Bei kostenloser Signierung kann eine erneute Installation nach Ablauf des Profils nötig sein.
+
+Für spätere React-Änderungen `npm run ios:sync` ausführen und die App danach erneut in Xcode starten. `npm run ios:run` baut, synchronisiert und startet im Simulator. `npm run build` bleibt der Web-Build; `npm run build:ios` erzeugt die native Startseite und lässt den Web-Service-Worker weg. Die iOS-Konfiguration enthält absichtlich keine `server.url`.
+
+Für Live Reload während der Entwicklung in Terminal 1 `npm run dev -- --host 0.0.0.0` und in Terminal 2 `npm run ios:live` ausführen. Die Vorgabe `127.0.0.1` funktioniert im Simulator. Auf einem echten iPhone muss stattdessen `npx cap run ios --live-reload --host <LAN-IP-DES-MAC> --port 5173` verwendet werden; beide Geräte müssen dasselbe Netz verwenden. Live Reload braucht den Entwicklungsserver. Danach **immer** `npm run ios:sync` ausführen, bevor eine offlinefähige Version installiert wird.
+
+Auf iOS werden Ordner, Karten, Lerntermine, Bewertungen und Bilder nach jedem abgeschlossenen Schreibvorgang zusätzlich in einer nativen SQLite-Datenbank gespeichert. Die bestehende Dexie-Datenbank dient der React-Oberfläche als reaktiver Arbeitsspeicher und wird beim App-Start mit SQLite abgeglichen. Vorhandene Daten im **gleichen App-Container** werden beim ersten Start in SQLite übernommen. Die PWA in Safari und die native App haben getrennte Datenspeicher; für den Wechsel eine ZIP-Sicherung in der PWA exportieren und in der nativen App unter **Einstellungen → Sicherung & Import** importieren. Das ist ein additiver Import. Dunkelmodus und das Datum der letzten Sicherung werden nativ über Capacitor Preferences gespeichert. ZIP-Exporte öffnen unter iOS das Teilen-Menü, damit die Datei in „Dateien“ gespeichert werden kann. Beim Löschen der App werden ihre lokalen Daten entfernt; Sicherungen bleiben deshalb wichtig.
 
 ## Ausprobieren auf diesem Mac
 
@@ -27,10 +45,10 @@ Der Entwicklungsserver wird im Terminal angezeigt (normalerweise http://127.0.0.
 ## Installationsseite und App
 
 - **http://localhost:4173/** ist die eigene Webseite zum Installieren, mit Anleitung für iPhone und Android und einem Link zum Ausprobieren.
-- **http://localhost:4173/app.html** ist die eigentliche Lern-App. Die Einstellungen oben rechts enthalten Hell-/Dunkelmodus und Sicherungen. Zur Sammlung gelangst du über den Ordnerpfad oder den Zurück-Pfeil. „Lernen starten“ befindet sich in der Lernübersicht des geöffneten Themas. „Neue Karte“ und „Neuer Ordner“ stehen gemeinsam unter der Suche. Sie hat keinen Drawer und keinen Installationsbutton.
+- **http://localhost:4173/app.html** ist die eigentliche Lern-App. Die Einstellungen oben rechts enthalten Hell-/Dunkelmodus und Sicherungen. Zur Sammlung gelangst du über den Ordnerpfad oder den Zurück-Pfeil. Auf der Startseite steht „Neuer Ordner“ neben „Deine Sammlung“. Ordner lassen sich dort aufklappen, um Unterordner anzulegen, und über das Reihenfolge-Symbol verschieben. Neue Karten erstellst du in einem geöffneten Ordner. „Lernen starten“ befindet sich in dessen Lernübersicht. Die App hat keinen Drawer und keinen Installationsbutton.
 - Installierte PWA-Symbole starten direkt in der Lern-App. Das Manifest verweist auf `app.html`; bereits vorhandene Home-Screen-Verknüpfungen auf die Startseite werden im Standalone-Modus ebenfalls direkt zur Lernansicht geführt.
 - Beide Ansichten verwenden dieselbe Website-Adresse und dieselbe IndexedDB. Ein Wechsel zwischen ihnen überschreibt oder verschiebt keine Karten. Der bisherige PWA-Identifier bleibt erhalten.
-- Die separate Webseite verändert die Installationstechnik nicht: Es bleibt eine PWA, keine native IPA-/APK-Datei. Der Browser installiert die App; unter iOS ist der Schritt über das Teilen-Menü erforderlich.
+- Die Webseite bleibt eine PWA. Zusätzlich gibt es die oben beschriebene native iOS-App; ihre Daten sind von der Safari-PWA getrennt.
 
 ## Version 1
 

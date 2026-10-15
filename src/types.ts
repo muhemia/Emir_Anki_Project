@@ -5,6 +5,7 @@ export interface Folder {
   name: string;
   color: string;
   createdAt: number;
+  sortOrder?: number;
 }
 export interface Flashcard {
   id: string;

@@ -162,6 +162,41 @@ test("leere Sammlung, Hell/Dunkel, mobile Darstellung und persistente Daten", as
   expect(overflow).toBe(false);
 });
 
+test("Hauptmenü zeigt nur Ordner, Unterordner klappen auf und Reihenfolge bleibt erhalten", async ({
+  page,
+}) => {
+  await expect(page.locator(".collection-toolbar")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Neue Karte" })).toHaveCount(0);
+  await expect(
+    page.locator(".collection-heading").getByRole("button", { name: "Neuer Ordner" }),
+  ).toBeVisible();
+  await createFolder(page, "Bio");
+  await createFolder(page, "Chemie");
+  await createFolder(page, "Physik");
+  const rootNames = page.locator(
+    ".folder-tree > .folder-card > .folder-card-row .folder-card-text strong",
+  );
+  await expect(rootNames).toHaveText(["Bio", "Chemie", "Physik"]);
+  await page.getByLabel("Reihenfolge für Physik").click();
+  await page.locator("details[open]").getByRole("button", { name: "Nach oben" }).click();
+  await expect(rootNames).toHaveText(["Bio", "Physik", "Chemie"]);
+  await page.reload();
+  await expect(rootNames).toHaveText(["Bio", "Physik", "Chemie"]);
+
+  await page.getByRole("button", { name: "Unterordner von Bio anzeigen" }).click();
+  const bio = page.locator(".folder-tree > .folder-card").first();
+  await expect(bio.getByRole("button", { name: "Unterordner hinzufügen" })).toBeVisible();
+  await bio.getByRole("button", { name: "Unterordner hinzufügen" }).click();
+  await expect(page.getByRole("dialog", { name: "Neuer Unterordner" })).toBeVisible();
+  await page.getByLabel("Name", { exact: true }).fill("Zellbiologie");
+  await page.getByRole("button", { name: "Bestätigen" }).click();
+  await expect(bio.getByRole("button", { name: "Ordner Zellbiologie öffnen" })).toBeVisible();
+  await expect(bio.locator(".subfolder-list").first().locator(":scope > *").last()).toHaveClass(/add-subfolder/);
+  await page.reload();
+  await page.getByRole("button", { name: "Unterordner von Bio anzeigen" }).click();
+  await expect(bio.getByRole("button", { name: "Ordner Zellbiologie öffnen" })).toBeVisible();
+});
+
 test("Ordner und Karten verschieben, Zyklen verhindern und bearbeiten", async ({
   page,
 }) => {
@@ -215,7 +250,10 @@ test("Ordner und Karten verschieben, Zyklen verhindern und bearbeiten", async ({
 test("Teilbaum lernen, Antwort aufdecken, bewerten, rückgängig und erneut lernen", async ({
   page,
 }) => {
+  await createFolder(page, "Anderes Fach");
+  await openFolder(page, "Anderes Fach");
   await createCard(page, "Außerhalb", "Soll nicht erscheinen");
+  await root(page);
   await createFolder(page, "Biologie");
   await openFolder(page, "Biologie");
   await createFolder(page, "Anatomie");

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import {
   Download,
   Upload,
@@ -14,6 +16,7 @@ import {
   type PreparedImport,
 } from "../backup";
 import { Modal, ErrorMessage, errorText } from "./ui";
+import { isNative, saveNativeExportDate } from "../native-storage";
 
 export function BackupDialog({
   folderId,
@@ -44,23 +47,43 @@ export function BackupDialog({
         kind,
         kind === "backup" ? null : folderId,
       );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const safeName = folderName
         .replace(/[^\p{L}\p{N}_-]+/gu, "-")
         .slice(0, 60);
-      a.download = `emir-${kind === "backup" ? "sicherung" : safeName}-${new Date().toISOString().slice(0, 10)}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      const filename = `emir-${kind === "backup" ? "sicherung" : safeName}-${new Date().toISOString().slice(0, 10)}.zip`;
+      if (isNative) {
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 8192)
+          binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+        await Filesystem.writeFile({
+          path: filename,
+          data: btoa(binary),
+          directory: Directory.Cache,
+        });
+        const file = await Filesystem.getUri({
+          path: filename,
+          directory: Directory.Cache,
+        });
+        await Share.share({ url: file.uri, dialogTitle: "Sicherung speichern" });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      }
       if (kind === "backup") {
         try {
-          localStorage.setItem("emir-last-export", new Date().toISOString());
+          const date = new Date().toISOString();
+          localStorage.setItem("emir-last-export", date);
+          await saveNativeExportDate(date);
         } catch {}
       }
-      onSaved("Export bereit. Speichere die ZIP-Datei an einem sicheren Ort.");
+      onSaved(isNative ? "Sicherung im Teilen-Menü bereit." : "Export bereit. Speichere die ZIP-Datei an einem sicheren Ort.");
     } catch (e) {
       setError(errorText(e));
     } finally {

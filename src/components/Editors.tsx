@@ -8,6 +8,7 @@ import {
   Upload,
 } from "lucide-react";
 import { db } from "../db";
+import { persistNative } from "../native-storage";
 import {
   id,
   newSchedule,
@@ -23,12 +24,14 @@ import { Modal, CardImage, ErrorMessage, errorText } from "./ui";
 export function FolderEditor({
   folder,
   parentId,
+  fromTree = false,
   onClose,
   onSaved,
   onImport,
 }: {
   folder?: Folder;
   parentId: string | null;
+  fromTree?: boolean;
   onClose: () => void;
   onSaved: () => void;
   onImport: () => void;
@@ -58,7 +61,7 @@ export function FolderEditor({
   const labels = ["Salbei", "Blau", "Bernstein", "Rosé", "Violett", "Grau"];
   return (
     <Modal
-      title={folder ? "Ordner bearbeiten" : "Neuer Ordner"}
+      title={folder ? "Ordner bearbeiten" : fromTree ? "Neuer Unterordner" : "Neuer Ordner"}
       onClose={() => !busy && onClose()}
     >
       <form onSubmit={submit} className="dialog-body">
@@ -105,7 +108,7 @@ export function FolderEditor({
             Abbrechen
           </button>
           <button className="button primary" disabled={busy || !name.trim()}>
-            {busy ? "Speichern …" : folder ? "Speichern" : "Ordner erstellen"}
+            {busy ? "Speichern …" : folder ? "Speichern" : fromTree ? "Bestätigen" : "Ordner erstellen"}
           </button>
         </div>
         {!folder && (
@@ -226,6 +229,7 @@ export function CardEditor({
           );
         }
       });
+      await persistNative(["cards", "media"]);
       onSaved();
     } catch (e) {
       setError(errorText(e));

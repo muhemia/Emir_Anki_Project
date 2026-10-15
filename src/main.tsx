@@ -5,11 +5,12 @@ import Landing from "./Landing";
 import "./style.css";
 import "./native.css";
 import "./landing.css";
+import { initializeNativeStorage, isNative } from "./native-storage";
 
 const installed =
   matchMedia("(display-mode: standalone)").matches ||
   (navigator as Navigator & { standalone?: boolean }).standalone === true;
-const showApp = location.pathname.endsWith("/app.html") || installed;
+const showApp = isNative || location.pathname.endsWith("/app.html") || installed;
 class ErrorBoundary extends Component<
   { children: ReactNode },
   { error: boolean }
@@ -36,8 +37,22 @@ class ErrorBoundary extends Component<
     );
   }
 }
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <ErrorBoundary>{showApp ? <App /> : <Landing />}</ErrorBoundary>
-  </StrictMode>,
-);
+const root = createRoot(document.getElementById("root")!);
+initializeNativeStorage()
+  .then(() =>
+    root.render(
+      <StrictMode>
+        <ErrorBoundary>{showApp ? <App /> : <Landing />}</ErrorBoundary>
+      </StrictMode>,
+    ),
+  )
+  .catch((error) => {
+    console.error("Start der lokalen Datenbank fehlgeschlagen", error);
+    root.render(
+      <main className="startup-error">
+        <h1>Der iPhone-Speicher konnte nicht geöffnet werden.</h1>
+        <p>Bitte starte die App erneut. Deine vorhandenen Daten werden nicht gelöscht.</p>
+        <p>{error instanceof Error ? error.message : "Unbekannter Fehler"}</p>
+      </main>,
+    );
+  });

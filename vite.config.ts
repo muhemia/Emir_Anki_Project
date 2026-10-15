@@ -2,14 +2,20 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  resolve: {
+    alias:
+      mode === "native"
+        ? [{ find: "virtual:pwa-register/react", replacement: "/src/native-pwa.ts" }]
+        : [],
+  },
   base: "./",
   build: {
     rolldownOptions: { input: { website: "index.html", app: "app.html" } },
   },
   plugins: [
     react(),
-    VitePWA({
+    ...(mode === "native" ? [] : [VitePWA({
       registerType: "prompt",
       includeAssets: ["favicon.svg", "apple-touch-icon.png"],
       manifest: {
@@ -44,11 +50,11 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         cleanupOutdatedCaches: true,
       },
-    }),
+    })]),
   ],
   test: {
     include: ["src/**/*.test.ts"],
     setupFiles: ["src/test-setup.ts"],
     environment: "node",
   },
-});
+}));

@@ -1,6 +1,7 @@
 import { createEmptyCard, fsrs, State, type Grade, type Card } from "ts-fsrs";
 import type { Flashcard, Folder } from "./types";
 import { db, type CardsDatabase } from "./db";
+import { persistNative } from "./native-storage";
 
 export const scheduler = fsrs({
   request_retention: 0.9,
@@ -60,6 +61,13 @@ export function uniqueName(name: string, used: string[]) {
   while (lower.has(`${clean} (${n})`.toLocaleLowerCase("de"))) n++;
   return `${clean} (${n})`;
 }
+export function compareFolders(a: Folder, b: Folder) {
+  if (a.sortOrder !== undefined || b.sortOrder !== undefined) {
+    const order = (a.sortOrder ?? -1) - (b.sortOrder ?? -1);
+    if (order) return order;
+  }
+  return a.name.localeCompare(b.name, "de");
+}
 export async function saveFolder(
   name: string,
   parentId: string | null,
@@ -70,7 +78,7 @@ export async function saveFolder(
   const clean = name.trim();
   if (!clean || clean.length > 120)
     throw new Error("Bitte gib einen Namen mit 1 bis 120 Zeichen ein.");
-  return database.transaction("rw", database.folders, async () => {
+  const result = await database.transaction("rw", database.folders, async () => {
     if (parentId && !(await database.folders.get(parentId)))
       throw new Error("Der Zielordner wurde entfernt.");
     const all = await database.folders.toArray();
@@ -91,10 +99,42 @@ export async function saveFolder(
       parentId,
       color,
       createdAt: old?.createdAt || Date.now(),
+      sortOrder:
+        old?.parentId === parentId
+          ? old.sortOrder
+          : Math.max(
+              -1,
+              ...all
+                .filter((f) => f.parentId === parentId)
+                .map((f) => f.sortOrder ?? -1),
+            ) + 1,
     };
     await database.folders.put(folder);
     return folder;
   });
+  if (database === db) await persistNative(["folders"]);
+  return result;
+}
+export async function reorderFolder(
+  folderId: string,
+  direction: "up" | "down",
+  database = db,
+) {
+  await database.transaction("rw", database.folders, async () => {
+    const folder = await database.folders.get(folderId);
+    if (!folder) throw new Error("Der Ordner wurde entfernt.");
+    const siblings = (await database.folders.toArray())
+      .filter((f) => f.parentId === folder.parentId)
+      .sort(compareFolders);
+    const index = siblings.findIndex((f) => f.id === folderId);
+    const next = index + (direction === "up" ? -1 : 1);
+    if (next < 0 || next >= siblings.length) return;
+    [siblings[index], siblings[next]] = [siblings[next], siblings[index]];
+    await database.folders.bulkPut(
+      siblings.map((sibling, order) => ({ ...sibling, sortOrder: order })),
+    );
+  });
+  if (database === db) await persistNative(["folders"]);
 }
 export async function moveFolder(
   folderId: string,
@@ -110,7 +150,7 @@ export async function moveCard(
   target: string | null,
   database = db,
 ) {
-  return database.transaction(
+  await database.transaction(
     "rw",
     database.cards,
     database.folders,
@@ -126,6 +166,7 @@ export async function moveCard(
         throw new Error("Die Karte wurde entfernt.");
     },
   );
+  if (database === db) await persistNative(["cards"]);
 }
 export async function deleteContent(
   kind: "folder" | "card",
@@ -163,6 +204,7 @@ export async function deleteContent(
       await database.media.bulkDelete(removed);
     },
   );
+  if (database === db) await persistNative();
 }
 export async function reviewCard(
   cardId: string,
@@ -170,7 +212,7 @@ export async function reviewCard(
   now: Date,
   database: CardsDatabase = db,
 ) {
-  return database.transaction(
+  const result = await database.transaction(
     "rw",
     database.cards,
     database.reviews,
@@ -193,6 +235,8 @@ export async function reviewCard(
       return { reviewId, cardId };
     },
   );
+  if (database === db) await persistNative(["cards", "reviews"]);
+  return result;
 }
 export async function undoReview(reviewId: string, database = db) {
   await database.transaction(
@@ -220,6 +264,7 @@ export async function undoReview(reviewId: string, database = db) {
       await database.reviews.delete(reviewId);
     },
   );
+  if (database === db) await persistNative(["cards", "reviews"]);
 }
 export function intervalLabel(due: Date | number, now = Date.now()) {
   const seconds = Math.max(0, Math.round((+new Date(due) - now) / 1000));
