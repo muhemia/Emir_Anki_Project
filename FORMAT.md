@@ -1,4 +1,10 @@
-# Emir-Cards-Paket, Version 1
+# Altes Emir-Cards-ZIP-Paket, Version 1
+
+Die App exportiert jetzt ausschließlich `.apkg`. Das Paket enthält eine echte Anki-SQLite-Sammlung (`collection.anki2`), die Medienzuordnung `media` und Bilddateien mit numerischen Namen; `collection.json` ist nicht enthalten. Ordner werden als Anki-Decks und Karten als Basic-Notizen exportiert. Der Anki-Export mit Lernstand bildet Termine und Bewertungen in Ankis Schema ab. Beim Rückimport aus Anki startet der Lernstand in Emir Cards neu.
+
+Der Export „Nur Karten“ enthält ausschließlich Karten direkt im ausgewählten Ordner und ihre Bilder. Anki benötigt für diese Karten ein Deck; das Paket verwendet dafür ein neutrales Deck. Die Anki-Datenbank trägt in `col.conf.emirCards` die Kennzeichnung `{ "version": 1, "mode": "direct-cards" }`. Emir Cards erkennt damit beim direkten Import, dass keine Ordner angelegt werden sollen, und fügt die Karten dem gewählten Ziel hinzu. Der Ordnerexport behält dagegen den gewählten Ordner und seine Unterordner bei und lässt alle übergeordneten Ordner weg.
+
+Die unten beschriebenen ZIP-Dateien stammen aus älteren Emir-Cards-Versionen. Sie können weiterhin importiert werden und bewahren dabei den ursprünglichen FSRS-Stand exakt.
 
 Eine ZIP-Datei enthält `collection.json` und optional Bilddateien unter `media/`. Es gibt keine externe Bildreferenz und keine ausführbaren Karteninhalte.
 

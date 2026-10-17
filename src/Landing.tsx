@@ -182,8 +182,8 @@ export default function Landing() {
             <ShieldCheck size={23} />
             <h2>Deine Daten bleiben bei dir.</h2>
             <p>
-              Alles liegt auf deinem Gerät. Eine ZIP-Datei sichert deine
-              Sammlung.
+              Alles liegt auf deinem Gerät. Exportiere deine Karten als
+              Anki-Paket (.apkg).
             </p>
           </article>
         </section>

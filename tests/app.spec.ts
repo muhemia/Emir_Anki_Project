@@ -48,12 +48,50 @@ async function isolatedStaticServer() {
   };
 }
 async function createFolder(page: Page, name: string) {
-  await page.getByRole("button", { name: "Neuer Ordner", exact: true }).click();
+  await expect(
+    page
+      .getByRole("navigation", { name: "Ordnerpfad" })
+      .getByRole("button", { name: "Sammlung" }),
+  ).toBeVisible();
+  const route = await page
+    .getByRole("navigation", { name: "Ordnerpfad" })
+    .locator("button")
+    .allTextContents();
+  if (route.length === 1) {
+    await page
+      .getByRole("button", { name: "Neuer Ordner", exact: true })
+      .click();
+  } else {
+    await root(page);
+    for (const ancestor of route.slice(1)) {
+      const toggle = page.getByRole("button", {
+        name: new RegExp(`^Unterordner von ${ancestor} (anzeigen|ausblenden)$`),
+      });
+      if ((await toggle.getAttribute("aria-expanded")) === "false")
+        await toggle.click();
+    }
+    await page
+      .locator(".folder-card")
+      .filter({
+        has: page.getByRole("button", {
+          name: `Ordner ${route.at(-1)} öffnen`,
+        }),
+      })
+      .last()
+      .getByRole("button", { name: "Unterordner hinzufügen" })
+      .click();
+  }
   await page.getByLabel("Name", { exact: true }).fill(name);
   await page
-    .getByRole("button", { name: "Ordner erstellen", exact: true })
+    .getByRole("button", {
+      name: route.length === 1 ? "Ordner erstellen" : "Bestätigen",
+      exact: true,
+    })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  if (route.length > 1) {
+    for (const ancestor of route.slice(1)) await openFolder(page, ancestor);
+  }
 }
 async function openFolder(page: Page, name: string) {
   await page
@@ -90,7 +128,7 @@ async function root(page: Page) {
 }
 async function backup(page: Page) {
   await page
-    .getByRole("button", { name: "Sicherung erstellen", exact: false })
+    .getByRole("button", { name: "Anki-Paket exportieren", exact: false })
     .click();
 }
 async function showCards(page: Page) {
@@ -168,7 +206,9 @@ test("Hauptmenü zeigt nur Ordner, Unterordner klappen auf und Reihenfolge bleib
   await expect(page.locator(".collection-toolbar")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Neue Karte" })).toHaveCount(0);
   await expect(
-    page.locator(".collection-heading").getByRole("button", { name: "Neuer Ordner" }),
+    page
+      .locator(".collection-heading")
+      .getByRole("button", { name: "Neuer Ordner" }),
   ).toBeVisible();
   await createFolder(page, "Bio");
   await createFolder(page, "Chemie");
@@ -178,23 +218,59 @@ test("Hauptmenü zeigt nur Ordner, Unterordner klappen auf und Reihenfolge bleib
   );
   await expect(rootNames).toHaveText(["Bio", "Chemie", "Physik"]);
   await page.getByLabel("Reihenfolge für Physik").click();
-  await page.locator("details[open]").getByRole("button", { name: "Nach oben" }).click();
+  await page
+    .locator("details[open]")
+    .getByRole("button", { name: "Nach oben" })
+    .click();
   await expect(rootNames).toHaveText(["Bio", "Physik", "Chemie"]);
   await page.reload();
   await expect(rootNames).toHaveText(["Bio", "Physik", "Chemie"]);
 
-  await page.getByRole("button", { name: "Unterordner von Bio anzeigen" }).click();
+  await page
+    .getByRole("button", { name: "Unterordner von Bio anzeigen" })
+    .click();
   const bio = page.locator(".folder-tree > .folder-card").first();
-  await expect(bio.getByRole("button", { name: "Unterordner hinzufügen" })).toBeVisible();
+  await expect(
+    bio.getByRole("button", { name: "Unterordner hinzufügen" }),
+  ).toBeVisible();
   await bio.getByRole("button", { name: "Unterordner hinzufügen" }).click();
-  await expect(page.getByRole("dialog", { name: "Neuer Unterordner" })).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "Neuer Unterordner" }),
+  ).toBeVisible();
   await page.getByLabel("Name", { exact: true }).fill("Zellbiologie");
   await page.getByRole("button", { name: "Bestätigen" }).click();
-  await expect(bio.getByRole("button", { name: "Ordner Zellbiologie öffnen" })).toBeVisible();
-  await expect(bio.locator(".subfolder-list").first().locator(":scope > *").last()).toHaveClass(/add-subfolder/);
+  await expect(
+    bio.getByRole("button", { name: "Ordner Zellbiologie öffnen" }),
+  ).toBeVisible();
+  await expect(
+    bio.locator(".subfolder-list").first().locator(":scope > *").last(),
+  ).toHaveClass(/add-subfolder/);
   await page.reload();
-  await page.getByRole("button", { name: "Unterordner von Bio anzeigen" }).click();
-  await expect(bio.getByRole("button", { name: "Ordner Zellbiologie öffnen" })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Unterordner von Bio anzeigen" })
+    .click();
+  await expect(
+    bio.getByRole("button", { name: "Ordner Zellbiologie öffnen" }),
+  ).toBeVisible();
+  await bio.getByRole("button", { name: "Ordner Zellbiologie öffnen" }).click();
+  await expect(
+    page.getByRole("navigation", { name: "Ordnerpfad" }).locator("button"),
+  ).toHaveText(["Sammlung", "Zellbiologie"]);
+  await expect(
+    page.getByRole("button", { name: "Neuer Ordner", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("Sammlung durchsuchen")).toHaveCount(0);
+  await expect(
+    page.locator(".folder-heading").getByRole("button", { name: "Neue Karte" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Zur vorherigen Ansicht" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Deine Sammlung." }),
+  ).toBeVisible();
+  await openFolder(page, "Bio");
+  await openFolder(page, "Zellbiologie");
+  await page.getByRole("button", { name: "Zur vorherigen Ansicht" }).click();
+  await expect(page.getByRole("heading", { name: "Bio." })).toBeVisible();
 });
 
 test("Ordner und Karten verschieben, Zyklen verhindern und bearbeiten", async ({
@@ -309,10 +385,17 @@ test("Export, zweimal additiver Import, Bilder und vollständiger Offline-Neusta
     await root(page);
     await backup(page);
     const downloadEvent = page.waitForEvent("download");
-    await page.getByRole("button", { name: "ZIP-Datei exportieren" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Anki-Paket exportieren" })
+      .click();
     const download = await downloadEvent;
+    expect(download.suggestedFilename()).toMatch(/\.apkg$/);
     const file = await download.path();
     expect(file).toBeTruthy();
+    const packageContents = await JSZip.loadAsync(await readFile(file!));
+    expect(packageContents.file("collection.anki2")).toBeTruthy();
+    expect(packageContents.file("collection.json")).toBeNull();
     await page
       .getByRole("button", { name: "Importieren", exact: true })
       .click();
@@ -385,6 +468,42 @@ test("Export, zweimal additiver Import, Bilder und vollständiger Offline-Neusta
   }
 });
 
+test("Anki-Paket kann in der App exportiert und wieder importiert werden", async ({
+  page,
+}) => {
+  const server = await isolatedStaticServer();
+  try {
+    await page.goto(server.url + "/app.html");
+    await createFolder(page, "Biologie");
+    await openFolder(page, "Biologie");
+    await createCard(page, "Frage für Anki", "Antwort für Anki", true);
+    await root(page);
+    await backup(page);
+    const downloadEvent = page.waitForEvent("download");
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Anki-Paket exportieren" })
+      .click();
+    const download = await downloadEvent;
+    expect(download.suggestedFilename()).toMatch(/\.apkg$/);
+    await page
+      .getByRole("button", { name: "Importieren", exact: true })
+      .click();
+    await page
+      .getByLabel("Sicherungsdatei auswählen", { exact: true })
+      .setInputFiles((await download.path())!);
+    await expect(
+      page.getByText("1 Ordner · 1 Karten · 1 Bilder"),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Zur Sammlung hinzufügen" }).click();
+    await expect(
+      page.getByRole("button", { name: "Ordner Biologie (1) öffnen" }),
+    ).toBeVisible();
+  } finally {
+    await server.stop();
+  }
+});
+
 test("Installationsseite und Lern-App sind getrennt und behalten dieselbe Sammlung", async ({
   page,
 }) => {
@@ -442,7 +561,7 @@ test("Ein installiertes Home-Screen-Symbol öffnet auch von der Startadresse die
   ).toHaveCount(0);
 });
 
-test("500 Karten bleiben eingeklappt und lassen sich im eigenen Bereich durchsuchen", async ({
+test("500 Karten bleiben eingeklappt und im eigenen Bereich bedienbar", async ({
   page,
 }) => {
   const zip = new JSZip();
@@ -528,9 +647,118 @@ test("500 Karten bleiben eingeklappt und lassen sich im eigenen Bereich durchsuc
   await root(page);
   await openFolder(page, "Großes Fach");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await page.getByLabel("Sammlung durchsuchen").fill("Frage 250");
-  await expect(toggle).toContainText("1");
+  await expect(page.getByLabel("Sammlung durchsuchen")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Neuer Ordner", exact: true }),
+  ).toHaveCount(0);
+  await expect(toggle).toContainText("500");
   await toggle.click();
-  await expect(list.locator(".card-row")).toHaveCount(1);
-  await expect(list).toContainText("Frage 250");
+  await expect(list.locator(".card-row")).toHaveCount(500);
+});
+
+test("echtes aktuelles Anki-Paket importieren und als .apkg exportieren", async ({
+  page,
+}) => {
+  await backup(page);
+  await page.getByRole("button", { name: "Importieren", exact: true }).click();
+  await page
+    .getByLabel("Sicherungsdatei auswählen", { exact: true })
+    .setInputFiles(path.resolve("tests/fixtures/anki-modern.apkg"));
+  await expect(page.getByText("2 Ordner · 1 Karten · 1 Bilder")).toBeVisible();
+  await page.getByRole("button", { name: "Zur Sammlung hinzufügen" }).click();
+  await expect(
+    page.getByRole("button", { name: "Ordner German öffnen", exact: true }),
+  ).toBeVisible();
+  await backup(page);
+  const downloadEvent = page.waitForEvent("download");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Anki-Paket exportieren" })
+    .click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toMatch(/\.apkg$/);
+  const contents = await JSZip.loadAsync(
+    await readFile((await download.path())!),
+  );
+  expect(contents.file("collection.json")).toBeNull();
+  const database = await contents.file("collection.anki2")!.async("uint8array");
+  expect(new TextDecoder().decode(database.slice(0, 16))).toBe(
+    "SQLite format 3\0",
+  );
+  const media = JSON.parse(await contents.file("media")!.async("string"));
+  expect(Object.keys(media)).toHaveLength(1);
+  expect(contents.file(Object.keys(media)[0])).toBeTruthy();
+});
+
+test("nur direkte Karten exportieren und ohne neuen Ordner ins Ziel importieren", async ({
+  page,
+}, testInfo) => {
+  await createFolder(page, "Anatomie");
+  await createFolder(page, "Zielordner");
+  await backup(page);
+  await page
+    .getByRole("button", { name: /Nur Karten aus „Sammlung“ speichern/ })
+    .click();
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Anki-Paket exportieren" }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Dialog schließen" }).click();
+
+  await openFolder(page, "Anatomie");
+  await createCard(page, "Direkt in Anatomie", "Anatomie-Antwort", true);
+  await createFolder(page, "Histologie");
+  await openFolder(page, "Histologie");
+  await createCard(page, "Nur in Histologie", "Histologie-Antwort");
+  await root(page);
+  await openFolder(page, "Anatomie");
+  await backup(page);
+  await expect(
+    page.getByRole("button", { name: /„Anatomie“ mit Unterordnern speichern/ }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: /Nur Karten aus „Anatomie“ speichern/ })
+    .click();
+  await expect(page.getByText(/1 direkt enthaltene Karten/)).toBeVisible();
+  const downloadEvent = page.waitForEvent("download");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Anki-Paket exportieren" })
+    .click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toMatch(/Anatomie-nur-karten-.*\.apkg$/);
+  const file = testInfo.outputPath("direct-cards.apkg");
+  await download.saveAs(file);
+  await page.getByRole("button", { name: "Dialog schließen" }).click();
+  await root(page);
+  await openFolder(page, "Zielordner");
+  await backup(page);
+  await page.getByRole("button", { name: "Importieren", exact: true }).click();
+  await page
+    .getByLabel("Sicherungsdatei auswählen", { exact: true })
+    .setInputFiles(file);
+  await expect(
+    page.getByText("1 Karten · 1 Bilder", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Direkt zu „Zielordner“ hinzufügen – ohne neuen Ordner."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Zur Sammlung hinzufügen" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".folder-card")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Karten anzeigen", exact: true }),
+  ).toBeVisible();
+  await showCards(page);
+  await expect(page.locator(".card-row")).toHaveCount(1);
+  await expect(page.locator(".card-row")).toContainText("Direkt in Anatomie");
+  await expect(
+    page.getByText("Nur in Histologie", { exact: true }),
+  ).toHaveCount(0);
+  await page.locator(".card-row-content").click();
+  await expect(page.getByRole("dialog").getByRole("img")).toBeVisible();
+  await page.getByRole("button", { name: "Fertig" }).click();
+  await root(page);
+  await expect(page.locator(".folder-tree > .folder-card")).toHaveCount(2);
 });

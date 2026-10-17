@@ -18,7 +18,6 @@ import {
   Pencil,
   Play,
   Plus,
-  Search,
   ShieldCheck,
   Sparkles,
   Sun,
@@ -29,13 +28,24 @@ import {
 import { State } from "ts-fsrs";
 import { db } from "./db";
 import { isNative, saveNativeTheme } from "./native-storage";
-import { compareFolders, deleteContent, isDue, reorderFolder, scopedCards, subtree } from "./domain";
+import {
+  compareFolders,
+  deleteContent,
+  isDue,
+  reorderFolder,
+  scopedCards,
+} from "./domain";
 import type { Flashcard, Folder } from "./types";
 import { FolderEditor, CardEditor, MoveDialog } from "./components/Editors";
 import { BackupDialog } from "./components/BackupDialog";
 import { Study } from "./components/Study";
 import { FolderTreeNode } from "./components/FolderTree";
 import { Modal, CardImage, ErrorMessage, errorText } from "./components/ui";
+import {
+  folderDepth,
+  MAX_CARDS_PER_FOLDER,
+  MAX_FOLDERS_PER_PARENT,
+} from "./limits";
 
 type Dialog =
   | { kind: "folder"; folder?: Folder; parentId?: string; fromTree?: boolean }
@@ -100,8 +110,10 @@ function ItemMenu({
   );
 }
 export default function App() {
-  const [currentId, setCurrentId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [navigationPath, setNavigationPath] = useState<(string | null)[]>([
+    null,
+  ]);
+  const currentId = navigationPath.at(-1) ?? null;
   const [cardsExpanded, setCardsExpanded] = useState(false);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(
     () => new Set(),
@@ -157,7 +169,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     if (data && currentId && !data.folders.some((f) => f.id === currentId))
-      setCurrentId(null);
+      setNavigationPath([null]);
   }, [data, currentId]);
   if (!data)
     return (
@@ -176,35 +188,30 @@ export default function App() {
   ).length;
   const fresh = scope.filter((c) => c.schedule.state === State.New).length;
   const todayCount = today.filter((r) => scopeIds.has(r.cardId)).length;
-  const query = search.toLocaleLowerCase("de").trim();
-  const visibleCards = (
-    query
-      ? scope.filter((c) =>
-          `${c.front} ${c.back}`.toLocaleLowerCase("de").includes(query),
-        )
-      : cards.filter((c) => c.folderId === currentId)
-  ).sort((a, b) => b.createdAt - a.createdAt);
-  const folderScope = subtree(folders, currentId);
+  const visibleCards = cards
+    .filter((c) => c.folderId === currentId)
+    .sort((a, b) => b.createdAt - a.createdAt);
   const visibleFolders = folders
-    .filter((f) =>
-      query
-        ? folderScope.has(f.id) &&
-          f.id !== currentId &&
-          f.name.toLocaleLowerCase("de").includes(query)
-        : f.parentId === currentId,
-    )
+    .filter((f) => f.parentId === currentId)
     .sort(compareFolders);
-  const crumbs: Folder[] = [];
-  let ancestor = folder;
-  const seen = new Set<string>();
-  while (ancestor && !seen.has(ancestor.id)) {
-    seen.add(ancestor.id);
-    crumbs.unshift(ancestor);
-    ancestor = folders.find((f) => f.id === ancestor?.parentId);
-  }
+  const rootFolderCount = folders.filter((f) => f.parentId === null).length;
+  const childFolderDepth = folder ? folderDepth(folders, currentId) + 1 : 1;
+  const crumbs = navigationPath
+    .slice(1)
+    .map((id) => folders.find((f) => f.id === id))
+    .filter((item): item is Folder => !!item);
   const navigate = (folderId: string | null) => {
-    setCurrentId(folderId);
-    setSearch("");
+    setNavigationPath((path) =>
+      folderId === null
+        ? [null]
+        : path.at(-1) === folderId
+          ? path
+          : [...path, folderId],
+    );
+    setCardsExpanded(false);
+  };
+  const navigateToPath = (index: number) => {
+    setNavigationPath((path) => path.slice(0, index + 1));
     setCardsExpanded(false);
   };
   const toggleFolder = (folderId: string) => {
@@ -252,8 +259,8 @@ export default function App() {
           {folder ? (
             <button
               className="icon-button"
-              aria-label="Zum übergeordneten Ordner"
-              onClick={() => navigate(folder.parentId)}
+              aria-label="Zur vorherigen Ansicht"
+              onClick={() => navigateToPath(navigationPath.length - 2)}
             >
               <ArrowLeft size={23} />
             </button>
@@ -273,12 +280,12 @@ export default function App() {
           </button>
         </header>
         <nav aria-label="Ordnerpfad" className="breadcrumbs native-crumbs">
-          <button onClick={() => navigate(null)}>Sammlung</button>
-          {crumbs.map((c) => (
+          <button onClick={() => navigateToPath(0)}>Sammlung</button>
+          {crumbs.map((c, index) => (
             <span key={c.id}>
               <ChevronRight size={13} />
               <button
-                onClick={() => navigate(c.id)}
+                onClick={() => navigateToPath(index + 1)}
                 aria-current={c.id === currentId ? "page" : undefined}
               >
                 {c.name}
@@ -301,7 +308,9 @@ export default function App() {
               </button>
             </div>
           )}
-          <div className={`page-heading ${folder ? "" : "collection-heading"}`}>
+          <div
+            className={`page-heading ${folder ? "folder-heading" : "collection-heading"}`}
+          >
             <div>
               <h1>
                 {title}
@@ -317,8 +326,31 @@ export default function App() {
               <button
                 className="button primary new-root-folder"
                 onClick={() => open({ kind: "folder" })}
+                disabled={rootFolderCount >= MAX_FOLDERS_PER_PARENT}
+                title="Maximal 10 Hauptordner"
+                aria-label={
+                  rootFolderCount >= MAX_FOLDERS_PER_PARENT
+                    ? "Limit erreicht: 10 Hauptordner"
+                    : undefined
+                }
               >
-                <FolderPlus size={18} /> Neuer Ordner
+                <FolderPlus size={18} />
+                {rootFolderCount >= MAX_FOLDERS_PER_PARENT
+                  ? "10/10 Ordner"
+                  : "Neuer Ordner"}
+              </button>
+            )}
+            {folder && (
+              <button
+                className="button primary new-folder-card"
+                onClick={() => open({ kind: "card" })}
+                disabled={visibleCards.length >= MAX_CARDS_PER_FOLDER}
+                title="Maximal 1.500 Karten direkt pro Ordner"
+              >
+                <Plus size={18} />
+                {visibleCards.length >= MAX_CARDS_PER_FOLDER
+                  ? "1.500/1.500 Karten"
+                  : "Neue Karte"}
               </button>
             )}
           </div>
@@ -373,46 +405,17 @@ export default function App() {
               </button>
             </section>
           )}
-          {folder && <div className="collection-toolbar">
-            <div className="section-title">
-              <h2>{query ? "Suchergebnisse" : "Deine Inhalte"}</h2>
-              <span>{scope.length} Karten insgesamt</span>
-            </div>
-            <div className="toolbar-actions">
-              <div className="search-field">
-                <Search size={17} />
-                <input
-                  aria-label="Sammlung durchsuchen"
-                  placeholder="Suchen …"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                {search && (
-                  <button
-                    className="icon-button small"
-                    aria-label="Suche leeren"
-                    onClick={() => setSearch("")}
-                  >
-                    <X size={14} />
-                  </button>
-                )}
+          {folder && (
+            <div className="collection-toolbar">
+              <div className="section-title">
+                <h2>Deine Inhalte</h2>
+                <span>
+                  {scope.length} Karten insgesamt · {visibleCards.length}/1.500
+                  hier
+                </span>
               </div>
-              <button
-                className="button secondary"
-                onClick={() => open({ kind: "folder" })}
-              >
-                <FolderPlus size={17} />
-                <span>Neuer Ordner</span>
-              </button>
-              <button
-                className="button primary"
-                onClick={() => open({ kind: "card" })}
-              >
-                <Plus size={18} />
-                Neue Karte
-              </button>
             </div>
-          </div>}
+          )}
           {visibleFolders.length > 0 && (
             <section className="folder-tree" aria-label="Ordner">
               {visibleFolders.map((f) => (
@@ -423,7 +426,8 @@ export default function App() {
                   cards={cards}
                   now={now}
                   expandedIds={expandedFolderIds}
-                  showChildren={!query}
+                  showChildren
+                  depth={childFolderDepth}
                   onToggle={toggleFolder}
                   onOpen={navigate}
                   onAdd={(parentId) =>
@@ -471,7 +475,7 @@ export default function App() {
               </button>
               <div
                 id="card-list"
-                key={`${currentId}:${query}`}
+                key={currentId}
                 className="cards-scroll"
                 role="region"
                 aria-label="Kartenliste"
@@ -556,50 +560,36 @@ export default function App() {
                 <span className="art-dot one" />
                 <span className="art-dot two" />
               </div>
-              <span className="eyebrow">
-                {query ? "NOCH NICHT GEFUNDEN" : "HIER BEGINNT DEIN WISSEN"}
-              </span>
+              <span className="eyebrow">HIER BEGINNT DEIN WISSEN</span>
               <h2>
-                {query
-                  ? "Keine passenden Inhalte."
-                  : folder
-                    ? "Mach dieses Thema zu deinem."
-                    : "Was möchtest du dir merken?"}
+                {folder
+                  ? "Mach dieses Thema zu deinem."
+                  : "Was möchtest du dir merken?"}
               </h2>
               <p>
-                {query
-                  ? "Probiere einen anderen Suchbegriff. Wir suchen auch in allen Unterordnern."
-                  : folder
-                    ? "Erstelle einen Unterordner oder füge hier eine Karte hinzu."
-                    : "Erstelle einen Ordner für dein erstes Thema. Der Rest wächst mit dir."}
+                {folder
+                  ? "Füge hier deine erste Karte hinzu."
+                  : "Erstelle einen Ordner für dein erstes Thema. Der Rest wächst mit dir."}
               </p>
-              <div className="empty-actions">
-                {query ? (
+              {!folder && (
+                <div className="empty-actions">
                   <button
-                    className="button secondary"
-                    onClick={() => setSearch("")}
+                    className="button primary"
+                    onClick={() => open({ kind: "folder" })}
+                    disabled={rootFolderCount >= MAX_FOLDERS_PER_PARENT}
                   >
-                    Suche zurücksetzen
+                    <FolderPlus size={18} />
+                    Ersten Ordner erstellen
                   </button>
-                ) : (
-                  <>
-                    <button
-                      className="button primary"
-                      onClick={() => open({ kind: "folder" })}
-                    >
-                      <FolderPlus size={18} />
-                      Ersten Ordner erstellen
-                    </button>
-                    <button
-                      className="button ghost"
-                      onClick={() => open({ kind: "backup", tab: "import" })}
-                    >
-                      <Upload size={16} />
-                      Sammlung importieren
-                    </button>
-                  </>
-                )}
-              </div>
+                  <button
+                    className="button ghost"
+                    onClick={() => open({ kind: "backup", tab: "import" })}
+                  >
+                    <Upload size={16} />
+                    Sammlung importieren
+                  </button>
+                </div>
+              )}
             </section>
           )}
           <footer className="collection-footer">
@@ -610,7 +600,7 @@ export default function App() {
                 : "Deine Karten bleiben auf diesem Gerät"}
             </span>
             <button onClick={() => open({ kind: "backup" })}>
-              Sicherung erstellen <ArrowUpRight size={13} />
+              Anki-Paket exportieren <ArrowUpRight size={13} />
             </button>
           </footer>
         </main>
@@ -675,6 +665,9 @@ export default function App() {
           folderId={currentId}
           folderName={folder?.name || "Sammlung"}
           hasContent={!!(folders.length || cards.length)}
+          directCardCount={
+            cards.filter((card) => card.folderId === currentId).length
+          }
           onClose={() => setDialog(undefined)}
           onSaved={setToast}
         />
@@ -692,8 +685,8 @@ export default function App() {
               {dialog.item === "folder"
                 ? `Dabei werden alle Unterordner und ${scopedCards(cards, folders, dialog.id).length} enthaltenen Karten mit ihrem Lernfortschritt gelöscht.`
                 : "Die Karte und ihr Lernfortschritt werden gelöscht."}{" "}
-              Diese Aktion kann nur über eine vorherige Sicherung rückgängig
-              gemacht werden.
+              Ein zuvor exportiertes Anki-Paket kann die Karten wieder
+              hinzufügen. Ihr Lernfortschritt startet in Emir Cards neu.
             </p>
             <ErrorMessage error={error} />
             <div className="dialog-actions">
@@ -783,35 +776,40 @@ export default function App() {
               >
                 <ShieldCheck size={21} />
                 <span>
-                  Sicherung & Import
-                  <small>Sammlung sichern oder Karten hinzufügen</small>
+                  Anki-Export & Import
+                  <small>
+                    Sammlung als .apkg speichern oder Karten hinzufügen
+                  </small>
                 </span>
                 <ChevronRight size={18} />
               </button>
-              {!isNative && <button
-                className="settings-row"
-                onClick={async () => {
-                  const ok = await navigator.storage
-                    ?.persist?.()
-                    .catch(() => false);
-                  setToast(
-                    ok
-                      ? "Dauerhafter Speicher wurde gewährt. Bitte trotzdem regelmäßig sichern."
-                      : "Der Browser entscheidet über dauerhaften Speicher. Bitte regelmäßig sichern.",
-                  );
-                }}
-              >
-                <HardDrive size={21} />
-                <span>
-                  Speicher schützen<small>Dauerhaften Speicher anfragen</small>
-                </span>
-                <ChevronRight size={18} />
-              </button>}
+              {!isNative && (
+                <button
+                  className="settings-row"
+                  onClick={async () => {
+                    const ok = await navigator.storage
+                      ?.persist?.()
+                      .catch(() => false);
+                    setToast(
+                      ok
+                        ? "Dauerhafter Speicher wurde gewährt. Bitte trotzdem regelmäßig sichern."
+                        : "Der Browser entscheidet über dauerhaften Speicher. Bitte regelmäßig sichern.",
+                    );
+                  }}
+                >
+                  <HardDrive size={21} />
+                  <span>
+                    Speicher schützen
+                    <small>Dauerhaften Speicher anfragen</small>
+                  </span>
+                  <ChevronRight size={18} />
+                </button>
+              )}
             </section>
             <p className="settings-note">
-              Deine Karten liegen auf diesem Gerät. Sichere sie regelmäßig als
-              Datei. Beim Wechsel auf ein anderes Gerät oder eine andere
-              Website-Adresse kannst du die Sicherung importieren.
+              Deine Karten liegen auf diesem Gerät. Exportiere regelmäßig ein
+              Anki-Paket (.apkg). Beim Import in Emir Cards beginnen die Karten
+              mit neuem Lernfortschritt.
             </p>
             <div className="app-version">
               <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" />

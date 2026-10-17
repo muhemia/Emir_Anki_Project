@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { compareFolders, isDue, scopedCards } from "../domain";
 import type { Flashcard, Folder } from "../types";
+import { MAX_FOLDER_DEPTH, MAX_FOLDERS_PER_PARENT } from "../limits";
 
 type Props = {
   folder: Folder;
@@ -21,6 +22,7 @@ type Props = {
   now: number;
   expandedIds: Set<string>;
   showChildren: boolean;
+  depth: number;
   onToggle: (id: string) => void;
   onOpen: (id: string) => void;
   onAdd: (id: string) => void;
@@ -44,6 +46,7 @@ export function FolderTreeNode(props: Props) {
     now,
     expandedIds,
     showChildren,
+    depth,
     onToggle,
     onOpen,
     onAdd,
@@ -60,6 +63,8 @@ export function FolderTreeNode(props: Props) {
     .filter((item) => item.parentId === folder.id)
     .sort(compareFolders);
   const expanded = showChildren && expandedIds.has(folder.id);
+  const canNest = depth < MAX_FOLDER_DEPTH;
+  const canExpand = showChildren && (canNest || children.length > 0);
   const contents = scopedCards(cards, folders, folder.id);
   const ready = contents.filter((card) => isDue(card, now)).length;
   return (
@@ -83,7 +88,7 @@ export function FolderTreeNode(props: Props) {
           </span>
         </button>
         <div className="folder-card-actions">
-          {showChildren && (
+          {canExpand && (
             <button
               className="folder-action-button"
               aria-label={`Unterordner von ${folder.name} ${expanded ? "ausblenden" : "anzeigen"}`}
@@ -153,7 +158,7 @@ export function FolderTreeNode(props: Props) {
           </details>
         </div>
       </div>
-      {showChildren && (
+      {canExpand && (
         <div
           id={`subfolders-${folder.id}`}
           className="subfolder-list"
@@ -162,14 +167,26 @@ export function FolderTreeNode(props: Props) {
           {expanded && (
             <>
               {children.map((child) => (
-                <FolderTreeNode key={child.id} {...props} folder={child} />
+                <FolderTreeNode
+                  key={child.id}
+                  {...props}
+                  folder={child}
+                  depth={depth + 1}
+                />
               ))}
-              <button
-                className="add-subfolder"
-                onClick={() => onAdd(folder.id)}
-              >
-                <FolderPlus size={18} /> Unterordner hinzufügen
-              </button>
+              {canNest && (
+                <button
+                  className="add-subfolder"
+                  onClick={() => onAdd(folder.id)}
+                  disabled={children.length >= MAX_FOLDERS_PER_PARENT}
+                  title="Maximal 10 Unterordner pro Ordner"
+                >
+                  <FolderPlus size={18} />
+                  {children.length >= MAX_FOLDERS_PER_PARENT
+                    ? "10/10 Unterordner"
+                    : "Unterordner hinzufügen"}
+                </button>
+              )}
             </>
           )}
         </div>

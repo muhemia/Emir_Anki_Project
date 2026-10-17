@@ -2033,6 +2033,10 @@ hr {
   .section-title h2 {
     font-size: 14px;
   }
+  .section-title > span {
+    white-space: normal;
+    text-align: right;
+  }
   .toolbar-actions {
     justify-content: space-between;
   }

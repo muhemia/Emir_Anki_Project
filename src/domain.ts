@@ -2,6 +2,7 @@ import { createEmptyCard, fsrs, State, type Grade, type Card } from "ts-fsrs";
 import type { Flashcard, Folder } from "./types";
 import { db, type CardsDatabase } from "./db";
 import { persistNative } from "./native-storage";
+import { assertCardCapacity, assertFolderPlacement } from "./limits";
 
 export const scheduler = fsrs({
   request_retention: 0.9,
@@ -78,40 +79,45 @@ export async function saveFolder(
   const clean = name.trim();
   if (!clean || clean.length > 120)
     throw new Error("Bitte gib einen Namen mit 1 bis 120 Zeichen ein.");
-  const result = await database.transaction("rw", database.folders, async () => {
-    if (parentId && !(await database.folders.get(parentId)))
-      throw new Error("Der Zielordner wurde entfernt.");
-    const all = await database.folders.toArray();
-    const old = existingId ? all.find((f) => f.id === existingId) : undefined;
-    if (existingId && !old) throw new Error("Der Ordner wurde entfernt.");
-    if (existingId && subtree(all, existingId).has(parentId))
-      throw new Error(
-        "Ein Ordner kann nicht in sich selbst verschoben werden.",
-      );
-    const folder: Folder = {
-      id: existingId || id(),
-      name: uniqueName(
-        clean,
-        all
-          .filter((f) => f.parentId === parentId && f.id !== existingId)
-          .map((f) => f.name),
-      ),
-      parentId,
-      color,
-      createdAt: old?.createdAt || Date.now(),
-      sortOrder:
-        old?.parentId === parentId
-          ? old.sortOrder
-          : Math.max(
-              -1,
-              ...all
-                .filter((f) => f.parentId === parentId)
-                .map((f) => f.sortOrder ?? -1),
-            ) + 1,
-    };
-    await database.folders.put(folder);
-    return folder;
-  });
+  const result = await database.transaction(
+    "rw",
+    database.folders,
+    async () => {
+      if (parentId && !(await database.folders.get(parentId)))
+        throw new Error("Der Zielordner wurde entfernt.");
+      const all = await database.folders.toArray();
+      const old = existingId ? all.find((f) => f.id === existingId) : undefined;
+      if (existingId && !old) throw new Error("Der Ordner wurde entfernt.");
+      if (existingId && subtree(all, existingId).has(parentId))
+        throw new Error(
+          "Ein Ordner kann nicht in sich selbst verschoben werden.",
+        );
+      assertFolderPlacement(all, parentId, existingId);
+      const folder: Folder = {
+        id: existingId || id(),
+        name: uniqueName(
+          clean,
+          all
+            .filter((f) => f.parentId === parentId && f.id !== existingId)
+            .map((f) => f.name),
+        ),
+        parentId,
+        color,
+        createdAt: old?.createdAt || Date.now(),
+        sortOrder:
+          old?.parentId === parentId
+            ? old.sortOrder
+            : Math.max(
+                -1,
+                ...all
+                  .filter((f) => f.parentId === parentId)
+                  .map((f) => f.sortOrder ?? -1),
+              ) + 1,
+      };
+      await database.folders.put(folder);
+      return folder;
+    },
+  );
   if (database === db) await persistNative(["folders"]);
   return result;
 }
@@ -157,6 +163,10 @@ export async function moveCard(
     async () => {
       if (target && !(await database.folders.get(target)))
         throw new Error("Der Zielordner wurde entfernt.");
+      const card = await database.cards.get(cardId);
+      if (!card) throw new Error("Die Karte wurde entfernt.");
+      if (card.folderId !== target)
+        assertCardCapacity(await database.cards.toArray(), target);
       if (
         !(await database.cards.update(cardId, {
           folderId: target,

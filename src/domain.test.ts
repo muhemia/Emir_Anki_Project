@@ -16,6 +16,7 @@ import {
 import { exportPackage, prepareImport, commitImport } from "./backup";
 import JSZip from "jszip";
 import type { Flashcard } from "./types";
+import { assertImportCapacity } from "./limits";
 const db = new CardsDatabase("test-cards");
 const card = (folderId: string | null, front = "Frage"): Flashcard => ({
   id: id(),
@@ -74,6 +75,104 @@ describe("Ordner und Lernbereich", () => {
     expect(await db.folders.count()).toBe(0);
     expect(await db.cards.toArray()).toEqual([other]);
     expect(await db.reviews.count()).toBe(0);
+  });
+});
+describe("Sammlungslimits", () => {
+  it("erlaubt vier Ebenen und zehn Geschwister, aber keinen weiteren Ordner", async () => {
+    const roots = [];
+    for (let i = 0; i < 10; i++)
+      roots.push(await saveFolder(`Fach ${i}`, null, "sage", undefined, db));
+    await expect(
+      saveFolder("Zu viel", null, "sage", undefined, db),
+    ).rejects.toThrow("10 Hauptordner");
+    await saveFolder("Umbenannt", null, "sage", roots[0].id, db);
+    const first = await saveFolder(
+      "Ebene 2",
+      roots[0].id,
+      "sage",
+      undefined,
+      db,
+    );
+    for (let i = 0; i < 9; i++)
+      await saveFolder(
+        `Weiteres Thema ${i}`,
+        roots[0].id,
+        "sage",
+        undefined,
+        db,
+      );
+    await expect(
+      saveFolder("Zu viel", roots[0].id, "sage", undefined, db),
+    ).rejects.toThrow("10 Unterordner");
+    const second = await saveFolder("Ebene 3", first.id, "sage", undefined, db);
+    const third = await saveFolder("Ebene 4", second.id, "sage", undefined, db);
+    await expect(
+      saveFolder("Ebene 5", third.id, "sage", undefined, db),
+    ).rejects.toThrow("vier Ordnerebenen");
+  });
+  it("prüft beim Verschieben die gesamte Tiefe des Teilbaums", async () => {
+    const source = await saveFolder("Quelle", null, "sage", undefined, db);
+    const child = await saveFolder("Kind", source.id, "sage", undefined, db);
+    const parent = await saveFolder("Ziel", null, "sage", undefined, db);
+    const deep = await saveFolder("Tief", parent.id, "sage", undefined, db);
+    const deeper = await saveFolder(
+      "Noch tiefer",
+      deep.id,
+      "sage",
+      undefined,
+      db,
+    );
+    await expect(moveFolder(source.id, deeper.id, db)).rejects.toThrow(
+      "vier Ordnerebenen",
+    );
+    expect((await db.folders.get(child.id))?.parentId).toBe(source.id);
+    await moveFolder(source.id, deep.id, db);
+    expect((await db.folders.get(child.id))?.parentId).toBe(source.id);
+  });
+  it("begrenzt direkte Karten beim Verschieben und gibt Platz nach dem Löschen frei", async () => {
+    const target = await saveFolder("Voll", null, "sage", undefined, db);
+    const other = await saveFolder("Anderswo", null, "sage", undefined, db);
+    const filled = Array.from({ length: 1500 }, (_, i) =>
+      card(target.id, `Frage ${i}`),
+    );
+    await db.cards.bulkAdd(filled);
+    const extra = card(other.id);
+    await db.cards.add(extra);
+    await expect(moveCard(extra.id, target.id, db)).rejects.toThrow(
+      "1.500 Karten",
+    );
+    expect((await db.cards.get(extra.id))?.folderId).toBe(other.id);
+    await deleteContent("card", filled[0].id, db);
+    await moveCard(extra.id, target.id, db);
+    expect((await db.cards.get(extra.id))?.folderId).toBe(target.id);
+  });
+  it("weist Importe mit zu vielen direkten Karten zurück", async () => {
+    const target = await saveFolder("Ziel", null, "sage", undefined, db);
+    const existing = Array.from({ length: 1500 }, () => card(target.id));
+    const incoming = [card(target.id)];
+    expect(() =>
+      assertImportCapacity([target], [], existing, incoming),
+    ).toThrow("1.500 Karten");
+  });
+  it("bricht einen zu tiefen Import ohne Teiländerungen ab", async () => {
+    const source = await saveFolder("Quelle", null, "sage", undefined, db);
+    let target = await saveFolder("Ziel", null, "sage", undefined, db);
+    for (let level = 2; level <= 4; level++)
+      target = await saveFolder(
+        `Ebene ${level}`,
+        target.id,
+        "sage",
+        undefined,
+        db,
+      );
+    const prepared = await prepareImport(
+      await exportPackage("share", source.id, db),
+    );
+    const before = await db.folders.count();
+    await expect(commitImport(prepared, target.id, db)).rejects.toThrow(
+      "vier Ordnerebenen",
+    );
+    expect(await db.folders.count()).toBe(before);
   });
 });
 describe("Wiederholungen", () => {

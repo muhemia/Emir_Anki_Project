@@ -82,6 +82,13 @@
   flex-shrink: 0;
   border-radius: 14px;
 }
+.native-shell .folder-heading > div {
+  min-width: 0;
+}
+.native-shell .folder-heading .new-folder-card {
+  align-self: flex-start;
+  white-space: nowrap;
+}
 .native-shell .overview {
   border: 0;
   background: var(--panel);
@@ -573,6 +580,9 @@
     font-size: 11px;
     gap: 5px;
     padding: 11px 10px;
+  }
+  .native-shell .folder-heading {
+    flex-wrap: wrap;
   }
   .native-shell .collection-heading h1 {
     font-size: 24px;

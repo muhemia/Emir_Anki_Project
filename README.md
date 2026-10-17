@@ -18,7 +18,7 @@ Für spätere React-Änderungen `npm run ios:sync` ausführen und die App danach
 
 Für Live Reload während der Entwicklung in Terminal 1 `npm run dev -- --host 0.0.0.0` und in Terminal 2 `npm run ios:live` ausführen. Die Vorgabe `127.0.0.1` funktioniert im Simulator. Auf einem echten iPhone muss stattdessen `npx cap run ios --live-reload --host <LAN-IP-DES-MAC> --port 5173` verwendet werden; beide Geräte müssen dasselbe Netz verwenden. Live Reload braucht den Entwicklungsserver. Danach **immer** `npm run ios:sync` ausführen, bevor eine offlinefähige Version installiert wird.
 
-Auf iOS werden Ordner, Karten, Lerntermine, Bewertungen und Bilder nach jedem abgeschlossenen Schreibvorgang zusätzlich in einer nativen SQLite-Datenbank gespeichert. Die bestehende Dexie-Datenbank dient der React-Oberfläche als reaktiver Arbeitsspeicher und wird beim App-Start mit SQLite abgeglichen. Vorhandene Daten im **gleichen App-Container** werden beim ersten Start in SQLite übernommen. Die PWA in Safari und die native App haben getrennte Datenspeicher; für den Wechsel eine ZIP-Sicherung in der PWA exportieren und in der nativen App unter **Einstellungen → Sicherung & Import** importieren. Das ist ein additiver Import. Dunkelmodus und das Datum der letzten Sicherung werden nativ über Capacitor Preferences gespeichert. ZIP-Exporte öffnen unter iOS das Teilen-Menü, damit die Datei in „Dateien“ gespeichert werden kann. Beim Löschen der App werden ihre lokalen Daten entfernt; Sicherungen bleiben deshalb wichtig.
+Auf iOS werden Ordner, Karten, Lerntermine, Bewertungen und Bilder nach jedem abgeschlossenen Schreibvorgang zusätzlich in einer nativen SQLite-Datenbank gespeichert. Die bestehende Dexie-Datenbank dient der React-Oberfläche als reaktiver Arbeitsspeicher und wird beim App-Start mit SQLite abgeglichen. Vorhandene Daten im **gleichen App-Container** werden beim ersten Start in SQLite übernommen. Die PWA in Safari und die native App haben getrennte Datenspeicher; für den Wechsel ein Anki-Paket (.apkg) in der PWA exportieren und in der nativen App unter **Einstellungen → Anki-Export & Import** importieren. Das ist ein additiver Import; die Karten beginnen dabei in Emir Cards mit neuem Lernfortschritt. Dunkelmodus und das Datum des letzten Exports werden nativ über Capacitor Preferences gespeichert. Exporte öffnen unter iOS das Teilen-Menü, damit die Datei in „Dateien“ gespeichert werden kann. Beim Löschen der App werden ihre lokalen Daten entfernt; regelmäßige Exporte bleiben deshalb wichtig.
 
 ## Ausprobieren auf diesem Mac
 
@@ -45,7 +45,7 @@ Der Entwicklungsserver wird im Terminal angezeigt (normalerweise http://127.0.0.
 ## Installationsseite und App
 
 - **http://localhost:4173/** ist die eigene Webseite zum Installieren, mit Anleitung für iPhone und Android und einem Link zum Ausprobieren.
-- **http://localhost:4173/app.html** ist die eigentliche Lern-App. Die Einstellungen oben rechts enthalten Hell-/Dunkelmodus und Sicherungen. Zur Sammlung gelangst du über den Ordnerpfad oder den Zurück-Pfeil. Auf der Startseite steht „Neuer Ordner“ neben „Deine Sammlung“. Ordner lassen sich dort aufklappen, um Unterordner anzulegen, und über das Reihenfolge-Symbol verschieben. Neue Karten erstellst du in einem geöffneten Ordner. „Lernen starten“ befindet sich in dessen Lernübersicht. Die App hat keinen Drawer und keinen Installationsbutton.
+- **http://localhost:4173/app.html** ist die eigentliche Lern-App. Die Einstellungen oben rechts enthalten Hell-/Dunkelmodus und Sicherungen. Der Zurück-Pfeil führt zur zuvor besuchten Ansicht. Auf der Startseite steht „Neuer Ordner“ neben „Deine Sammlung“. Ordner lassen sich dort aufklappen, um Unterordner anzulegen, und über das Reihenfolge-Symbol verschieben. Neue Karten erstellst du in einem geöffneten Ordner. „Lernen starten“ befindet sich in dessen Lernübersicht. Die App hat keinen Drawer und keinen Installationsbutton.
 - Installierte PWA-Symbole starten direkt in der Lern-App. Das Manifest verweist auf `app.html`; bereits vorhandene Home-Screen-Verknüpfungen auf die Startseite werden im Standalone-Modus ebenfalls direkt zur Lernansicht geführt.
 - Beide Ansichten verwenden dieselbe Website-Adresse und dieselbe IndexedDB. Ein Wechsel zwischen ihnen überschreibt oder verschiebt keine Karten. Der bisherige PWA-Identifier bleibt erhalten.
 - Die Webseite bleibt eine PWA. Zusätzlich gibt es die oben beschriebene native iOS-App; ihre Daten sind von der Safari-PWA getrennt.
@@ -57,14 +57,15 @@ Der Entwicklungsserver wird im Terminal angezeigt (normalerweise http://127.0.0.
 - Ganze Teilbäume zwischen oberster Ebene und Unterordnern verschieben. Zyklen werden verhindert.
 - Karten mit Text und/oder Bildern auf beiden Seiten; bearbeiten, ansehen, verschieben und löschen.
 - Kartenlisten sind zunächst eingeklappt. „Karten“ mit Pfeil und Anzahl öffnet einen begrenzten Scrollbereich; beim Ordnerwechsel wird er wieder geschlossen. Ordner bleiben direkt sichtbar.
-- Suche in Frage, Antwort und Ordnernamen innerhalb des ausgewählten Teilbaums.
+- Maximal 10 Hauptordner, 10 Unterordner je Ordner und vier Ordnerebenen insgesamt; maximal 1.500 direkte Karten pro Ordner. Erstellen, Verschieben und Importieren prüfen diese Grenzen. Bestehende Inhalte bleiben erhalten.
 - Lernen bezieht sich auf den ausgewählten Ordner einschließlich aller Unterordner und direkter Karten.
 - Neue und fällige Karten, ohne Tageslimit; fällige Wiederholungen vor neuen Karten.
 - FSRS mit Nochmal / Schwer / Gut / Einfach, angezeigten Zeitabständen und Rückgängigmachen der letzten Bewertung dieser Sitzung.
 - Lernschritte 1 und 10 Minuten, Zielbehaltensrate 90 %. Eine mit „Nochmal“ bewertete Karte kehrt zum fälligen Zeitpunkt zurück. Eine Karte wird nicht durch „Gut“ dauerhaft entfernt.
 - Hell-/Dunkelmodus; anfangs an die Systemeinstellung angepasst, die Auswahl wird gespeichert.
 - Offline-Betrieb nach vollständigem Erstladen, einschließlich Bilder, Lernen, Anlegen und Export.
-- ZIP-Export der ganzen Sammlung inklusive Lernfortschritt sowie Themenexport zum Teilen ohne persönlichen Lernfortschritt.
+- Export ausschließlich als echtes Anki-Paket (`.apkg`) mit Decks, Basic-Karten und Bildern: ganze Sammlung mit in Anki übertragbarem Lernstand, ausgewählter Ordner samt Unterordnern ohne Lernstand oder nur die direkt enthaltenen Karten ohne Lernstand. Direkte Kartenpakete werden in Emir Cards ohne neuen Ordner dem beim Import geöffneten Ordner hinzugefügt. Das Paket enthält `collection.anki2` und keine `collection.json`.
+- Import von `.apkg`-Paketen aus aktuellen und älteren Anki-Versionen für einfache Vorder-/Rückseitenkarten mit JPG-, PNG- oder WebP-Bildern. Alte Emir-Cards-ZIP-Sicherungen lassen sich weiterhin importieren. Importierte Anki-Karten beginnen in Emir Cards als neue Karten.
 - Jeder Import ergänzt. Neue interne IDs verhindern Überschreiben; gleiche Ordnernamen auf derselben Ebene werden zu „Biologie (1)“, „Biologie (2)“ usw.
 - Wiederholtes Importieren derselben Datei erzeugt bewusst weitere Kopien.
 
@@ -77,7 +78,7 @@ Die internen Daten liegen in IndexedDB. Bilder werden als Binärdaten gespeicher
 3. Anatomie öffnen und „Lernen starten“ wählen. Die Kopf-Karte ist enthalten.
 4. Antwort aufdecken, „Nochmal“ wählen und die letzte Bewertung rückgängig machen. Danach „Einfach“ wählen: Die Karte ist erst zum nächsten Termin fällig.
 5. Anatomie über das Drei-Punkte-Menü auf die oberste Ebene verschieben. Die Kopf-Karte behält ihren Lernstand.
-6. Sicherung erstellen und zweimal wieder importieren. Vorhandene Ordner bleiben erhalten; neue Kopien werden nummeriert.
+6. Anki-Paket exportieren und zweimal wieder importieren. Vorhandene Ordner bleiben erhalten; neue Kopien werden nummeriert.
 7. In den Einstellungen den Dunkelmodus einschalten und neu laden. Darstellung und Inhalte bleiben erhalten.
 8. Auf „Auch offline bereit“ warten, Seite einmal neu laden, Browser/Computer offline schalten und erneut laden. Karten und Bilder bleiben nutzbar. Auch offline eine neue Karte erstellen.
 
@@ -90,17 +91,17 @@ Der fertige **`dist/`-Ordner** kann auf statischem HTTPS-Webspace unter einer fe
 - iPhone/Safari: Adresse öffnen → Teilen → Zum Home-Bildschirm → als Web-App öffnen → Hinzufügen.
 - Android/Chrome: Adresse öffnen → App installieren.
 - `localhost` auf einem Handy bezeichnet das Handy, nicht diesen Mac. Für Installations- und Offline-Tests auf einem echten Handy ist eine erreichbare **HTTPS-Adresse** erforderlich. Ein einfacher HTTP-Link zur lokalen IP ist dafür nicht ausreichend.
-- Für Tests am Handy wurde noch keine öffentliche Website bereitgestellt. Die lokale Vorschau funktioniert auf diesem Mac.
+- Veröffentlichte WebApp: https://emir-cards.round-loon-9426.chatgpt.site/app.html. Ein lokaler Build aktualisiert diese Adresse erst nach einer Sites-Veröffentlichung. Bereits geöffnete Apps übernehmen die neue Version über „Aktualisieren“.
 
 Nach dem ersten vollständigen Laden zeigt die App „Auch offline bereit“. Updates werden angeboten und erst nach deiner Bestätigung aktiviert. Die Website-Adresse langfristig beibehalten; ein Umzug benötigt vorher Export und danach Import.
 
 ## Sicherungen und Grenzen
 
-Browser können lokale Daten löschen, etwa bei Speicherknappheit oder beim Entfernen der Website-Daten. „Dauerhaften Speicher anfragen“ in den Einstellungen kann helfen, ersetzt aber keine Sicherung. Regelmäßig eine ZIP-Datei außerhalb der App speichern. Die App kann nicht im Hintergrund beliebige Ordner in der iPhone-Dateien-App beschreiben. Ein erfolgreicher Export-Download bedeutet noch nicht, dass du die Datei an einem sicheren Ort abgelegt hast.
+Browser können lokale Daten löschen, etwa bei Speicherknappheit oder beim Entfernen der Website-Daten. „Dauerhaften Speicher anfragen“ in den Einstellungen kann helfen, ersetzt aber keinen Export. Regelmäßig ein `.apkg` außerhalb der App speichern. Die App kann nicht im Hintergrund beliebige Ordner in der iPhone-Dateien-App beschreiben. Ein erfolgreicher Export-Download bedeutet noch nicht, dass du die Datei an einem sicheren Ort abgelegt hast.
 
-Version 1 akzeptiert JPG, PNG und WebP, bis 20 MB je Eingabebild. Bilder werden auf maximal 2.048 Pixel an der längsten Seite verkleinert (PNG bleibt transparent); maximal 20 Bilder je Kartenseite. Karten enthalten einfachen Text mit Zeilenumbrüchen. ZIP-Pakete und enthaltene Medien sind auf jeweils insgesamt 100 MB begrenzt, einzelne gespeicherte Bilder auf 12 MB, die JSON-Datei auf 12 MB. Größere Sammlungen in einzelnen Themen exportieren. Beschädigte Dateien werden vor dem Schreiben geprüft; der eigentliche Import läuft in einer Transaktion.
+Version 1 akzeptiert JPG, PNG und WebP, bis 20 MB je Eingabebild. Bilder werden auf maximal 2.048 Pixel an der längsten Seite verkleinert (PNG bleibt transparent); maximal 20 Bilder je Kartenseite. Karten enthalten einfachen Text mit Zeilenumbrüchen. Exportpakete und enthaltene Medien sind auf jeweils insgesamt 100 MB begrenzt, einzelne gespeicherte Bilder auf 12 MB. Größere Sammlungen in einzelnen Themen exportieren. Beschädigte Dateien werden vor dem Schreiben geprüft; der eigentliche Import läuft in einer Transaktion.
 
-Diese Version enthält noch keinen `.apkg`-Import, keine Lückentexte/Bildverdeckung, kein geräteübergreifendes Synchronisieren und keine automatische Anpassung der FSRS-Parameter an die eigene Historie. Sie bildet die hier vereinbarten Grundfunktionen ab, nicht sämtliche Funktionen von Anki.
+Anki-Import kann komplexe Vorlagen, Lückentexte, Bildverdeckung, Audio und Video nicht in den einfachen Kartentyp der App umwandeln und weist solche Pakete ab. HTML-Formatierungen werden als einfacher Text übernommen. Ankis und Emir Cards' Lernpläne lassen sich nicht verlustfrei ineinander umrechnen: Ein exportiertes `.apkg` kann Karten in Emir Cards wieder hinzufügen, aber den ursprünglichen FSRS-Lernstand dort nicht exakt wiederherstellen. Bereits vorhandene alte ZIP-Sicherungen behalten ihren Lernstand beim Import. Diese Version enthält kein geräteübergreifendes Synchronisieren und keine automatische Anpassung der FSRS-Parameter an die eigene Historie.
 
 ## Entwicklung und Prüfungen
 
@@ -115,4 +116,4 @@ npm run check
 - Beim Offline-Neustart wird der jeweilige Testserver vollständig abgeschaltet. In Chromium wird zusätzlich die Offline-Emulation aktiviert. WebKit 1.63 hat einen [bestätigten Fehler in der Offline-Emulation mit Service Workern](https://github.com/microsoft/playwright/issues/42775); dort verifiziert der abgeschaltete Server den Start aus dem Cache.
 - Browser-Emulation ersetzt den abschließenden Test auf echten iPhones und Android-Geräten nicht.
 
-`src/domain.ts` enthält Ordner- und Lernregeln, `src/backup.ts` das Dateiformat und die Importprüfung, `src/db.ts` die Datenbank, `src/components/` die Dialoge und Lernansicht. Das ZIP-Format ist in [FORMAT.md](FORMAT.md) beschrieben.
+`src/domain.ts` enthält Ordner- und Lernregeln, `src/anki.ts` den Anki-Export und -Import, `src/backup.ts` den Import alter Emir-Cards-ZIP-Dateien, `src/db.ts` die Datenbank und `src/components/` die Dialoge und Lernansicht. Das alte ZIP-Format ist in [FORMAT.md](FORMAT.md) beschrieben.

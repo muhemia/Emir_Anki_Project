@@ -20,6 +20,7 @@ import {
 import { processImage } from "../media";
 import { colors, type Flashcard, type Folder, type Media } from "../types";
 import { Modal, CardImage, ErrorMessage, errorText } from "./ui";
+import { assertCardCapacity } from "../limits";
 
 export function FolderEditor({
   folder,
@@ -61,7 +62,13 @@ export function FolderEditor({
   const labels = ["Salbei", "Blau", "Bernstein", "Rosé", "Violett", "Grau"];
   return (
     <Modal
-      title={folder ? "Ordner bearbeiten" : fromTree ? "Neuer Unterordner" : "Neuer Ordner"}
+      title={
+        folder
+          ? "Ordner bearbeiten"
+          : fromTree
+            ? "Neuer Unterordner"
+            : "Neuer Ordner"
+      }
       onClose={() => !busy && onClose()}
     >
       <form onSubmit={submit} className="dialog-body">
@@ -108,7 +115,13 @@ export function FolderEditor({
             Abbrechen
           </button>
           <button className="button primary" disabled={busy || !name.trim()}>
-            {busy ? "Speichern …" : folder ? "Speichern" : fromTree ? "Bestätigen" : "Ordner erstellen"}
+            {busy
+              ? "Speichern …"
+              : folder
+                ? "Speichern"
+                : fromTree
+                  ? "Bestätigen"
+                  : "Ordner erstellen"}
           </button>
         </div>
         {!folder && (
@@ -122,7 +135,7 @@ export function FolderEditor({
               <Upload size={18} />
               Ordner importieren
             </button>
-            <p className="muted">Aus einer Emir-Cards-ZIP-Datei hinzufügen.</p>
+            <p className="muted">Aus einer Anki-Datei (.apkg) hinzufügen.</p>
           </div>
         )}
       </form>
@@ -198,12 +211,13 @@ export function CardEditor({
     setError("");
     try {
       await db.transaction("rw", db.cards, db.folders, db.media, async () => {
-        const target = card ? card.folderId : folderId;
-        if (target && !(await db.folders.get(target)))
-          throw new Error("Dieser Ordner wurde inzwischen entfernt.");
         const current = card ? await db.cards.get(card.id) : undefined;
         if (card && !current)
           throw new Error("Diese Karte wurde inzwischen entfernt.");
+        const target = current ? current.folderId : folderId;
+        if (target && !(await db.folders.get(target)))
+          throw new Error("Dieser Ordner wurde inzwischen entfernt.");
+        if (!card) assertCardCapacity(await db.cards.toArray(), target);
         const imageIds = new Set([...frontImages, ...backImages]);
         await db.media.bulkPut(pending.filter((m) => imageIds.has(m.id)));
         await db.cards.put({

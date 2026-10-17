@@ -12,6 +12,7 @@ import {
   uniqueName,
 } from "./domain";
 import type { Flashcard, Folder, Media, Review } from "./types";
+import { assertImportCapacity } from "./limits";
 
 const MB = 1024 * 1024;
 const uid = z.string().min(1).max(128);
@@ -186,7 +187,7 @@ export async function exportPackage(
     );
   return result;
 }
-function readLimited(
+export function readLimited(
   entry: JSZip.JSZipObject,
   limit: number,
 ): Promise<Uint8Array> {
@@ -250,9 +251,7 @@ export async function prepareImport(file: Blob): Promise<PreparedImport> {
     throw new Error("Die Sicherung enthält zu viele Dateien.");
   const entry = zip.file("collection.json");
   if (!entry)
-    throw new Error(
-      "Keine Emir-Cards-Sicherung gefunden. Anki-Dateien (.apkg) werden in Version 1 noch nicht unterstützt.",
-    );
+    throw new Error("Keine Emir-Cards-Sicherung gefunden.");
   let data: PackageData;
   try {
     data = packageSchema.parse(
@@ -338,12 +337,13 @@ export async function commitImport(
       const cardIds = new Map(data.cards.map((c) => [c.id, id()]));
       const mediaIds = new Map(data.media.map((m) => [m.id, id()]));
       const existing = await database.folders.toArray();
-      const rootOffset = Math.max(
-        -1,
-        ...existing
-          .filter((folder) => folder.parentId === target)
-          .map((folder) => folder.sortOrder ?? -1),
-      ) + 1;
+      const rootOffset =
+        Math.max(
+          -1,
+          ...existing
+            .filter((folder) => folder.parentId === target)
+            .map((folder) => folder.sortOrder ?? -1),
+        ) + 1;
       const rootOrders = new Map(
         data.folders
           .filter((folder) => folder.parentId === null)
@@ -377,6 +377,12 @@ export async function commitImport(
         schedule:
           data.kind === "backup" ? hydrateSchedule(c.schedule!) : newSchedule(),
       }));
+      assertImportCapacity(
+        existing,
+        folders,
+        await database.cards.toArray(),
+        cards,
+      );
       const media = prepared.media.map((m) => ({
         ...m,
         id: mediaIds.get(m.id)!,
