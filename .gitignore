@@ -8,3 +8,12 @@ test-results/
 *.log
 .env*
 !.env.example
+
+# Production secrets, database exports and generated deployment artifacts
+*.env
+*.dump
+*.sql.gz
+*.pem
+*.key
+backups/
+coverage/

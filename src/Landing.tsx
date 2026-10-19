@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Smartphone,
   Sparkles,
-  WifiOff,
+  Cloud,
 } from "lucide-react";
 import { Modal, errorText } from "./components/ui";
 
@@ -24,7 +24,6 @@ export default function Landing() {
   const [message, setMessage] = useState("");
   const [installing, setInstalling] = useState(false);
   const {
-    offlineReady: [offlineReady],
     needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW();
@@ -103,7 +102,7 @@ export default function Landing() {
               <ArrowRight size={19} />
             </button>
             <div className="landing-platforms">
-              <Smartphone size={15} /> Für iPhone und Android · Ohne Konto
+              <Smartphone size={15} /> Im Browser · Mit deinem Konto
             </div>
             <a className="try-link" href="./app.html">
               Erst im Browser ausprobieren <ArrowRight size={16} />
@@ -171,19 +170,17 @@ export default function Landing() {
             </p>
           </article>
           <article>
-            <WifiOff size={23} />
-            <h2>Auch ohne Internet.</h2>
+            <Cloud size={23} />
+            <h2>Deine Karten im Konto.</h2>
             <p>
-              Einmal vollständig laden. Danach überall lernen, auch im
-              Flugmodus.
+              Melde dich mit Benutzername und Passwort an und öffne deine Sammlung wieder.
             </p>
           </article>
           <article>
             <ShieldCheck size={23} />
-            <h2>Deine Daten bleiben bei dir.</h2>
+            <h2>Zusätzlich als Anki-Paket.</h2>
             <p>
-              Alles liegt auf deinem Gerät. Exportiere deine Karten als
-              Anki-Paket (.apkg).
+              Exportiere deine Karten als Anki-Paket (.apkg) und importiere bestehende Karten.
             </p>
           </article>
         </section>
@@ -230,9 +227,7 @@ export default function Landing() {
       <footer className="landing-footer">
         <span>Emir Cards · Gemacht fürs Lernen.</span>
         <span>
-          {offlineReady
-            ? "App-Dateien für offline bereit"
-            : "Kostenlos · Ohne Anmeldung"}
+          Benutzername und Passwort · PostgreSQL
         </span>
       </footer>
       {help && (

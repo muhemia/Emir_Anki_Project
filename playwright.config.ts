@@ -25,9 +25,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npx vite preview --host 127.0.0.1 --port 4174 --strictPort",
+    command: "node tests/server.mjs",
     url: "http://localhost:4174",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
+    gracefulShutdown: { signal: "SIGTERM", timeout: 10000 },
     timeout: 20000,
   },
 });

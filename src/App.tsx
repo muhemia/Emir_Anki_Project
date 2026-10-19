@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import {
@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { State } from "ts-fsrs";
 import { db } from "./db";
+import { subscribeSync, getSyncState } from "./remote";
 import { isNative, saveNativeTheme } from "./native-storage";
 import {
   compareFolders,
@@ -109,7 +110,13 @@ function ItemMenu({
     </details>
   );
 }
-export default function App() {
+export default function App({
+  username,
+  onLogout,
+}: {
+  username?: string;
+  onLogout?: () => Promise<void>;
+}) {
   const [navigationPath, setNavigationPath] = useState<(string | null)[]>([
     null,
   ]);
@@ -120,6 +127,13 @@ export default function App() {
   );
   const [dialog, setDialog] = useState<Dialog>();
   const [studying, setStudying] = useState(false);
+  const sync = useSyncExternalStore(subscribeSync, getSyncState);
+  useEffect(() => {
+    if (!isNative) {
+      setStudying(false);
+      setDialog(undefined);
+    }
+  }, [sync.lastSynced]);
   const [toast, setToast] = useState("");
   const [theme, setTheme] = useState(
     document.documentElement.dataset.theme || "light",
@@ -128,7 +142,6 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const {
-    offlineReady: [offlineReady],
     needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW();
@@ -595,9 +608,9 @@ export default function App() {
           <footer className="collection-footer">
             <span>
               <HardDrive size={14} />
-              {offlineReady
-                ? "Auch offline bereit"
-                : "Deine Karten bleiben auf diesem Gerät"}
+              {isNative
+                ? "Deine Karten bleiben auf diesem Gerät"
+                : "Lokal gespeichert · Mit Synchronisieren im Konto sichern"}
             </span>
             <button onClick={() => open({ kind: "backup" })}>
               Anki-Paket exportieren <ArrowUpRight size={13} />
@@ -783,33 +796,30 @@ export default function App() {
                 </span>
                 <ChevronRight size={18} />
               </button>
-              {!isNative && (
+            </section>
+            {onLogout && (
+              <section className="settings-group">
+                <h3>Konto</h3>
+                <p className="muted">Angemeldet als {username}</p>
+                <ErrorMessage error={error} />
                 <button
                   className="settings-row"
-                  onClick={async () => {
-                    const ok = await navigator.storage
-                      ?.persist?.()
-                      .catch(() => false);
-                    setToast(
-                      ok
-                        ? "Dauerhafter Speicher wurde gewährt. Bitte trotzdem regelmäßig sichern."
-                        : "Der Browser entscheidet über dauerhaften Speicher. Bitte regelmäßig sichern.",
-                    );
-                  }}
+                  onClick={() =>
+                    void onLogout().catch((reason) =>
+                      setError(errorText(reason)),
+                    )
+                  }
                 >
-                  <HardDrive size={21} />
-                  <span>
-                    Speicher schützen
-                    <small>Dauerhaften Speicher anfragen</small>
-                  </span>
-                  <ChevronRight size={18} />
+                  <span>Abmelden</span>
+                  <ArrowRight size={18} />
                 </button>
-              )}
-            </section>
+              </section>
+            )}
             <p className="settings-note">
-              Deine Karten liegen auf diesem Gerät. Exportiere regelmäßig ein
-              Anki-Paket (.apkg). Beim Import in Emir Cards beginnen die Karten
-              mit neuem Lernfortschritt.
+              {isNative
+                ? "Deine Karten liegen auf diesem Gerät."
+                : "Änderungen werden lokal gespeichert und beim Synchronisieren in dein Konto übertragen."}{" "}
+              Du kannst sie zusätzlich als Anki-Paket (.apkg) exportieren.
             </p>
             <div className="app-version">
               <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" />

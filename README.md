@@ -1,119 +1,80 @@
 # Emir Cards
 
-Eine lokale Karteikarten-App für iPhone und Computer. React, TypeScript und Vite als PWA und als native iOS-App mit Capacitor. Keine Anmeldung, keine API, keine Cloud-Datenbank, keine Analyse-Dienste und kein Anwendungsbackend. Die App startet leer.
+Karteikarten-Web-App mit React, TypeScript, Vite, FSRS und PostgreSQL. Jeder Nutzer hat einen eigenen Benutzernamen und ein Passwort. Ordner, Karten, Bilder und Lernverlauf werden benutzerbezogen in PostgreSQL gespeichert. Es gibt keine E-Mail-Adresse, Rollen oder Admin-Oberfläche.
 
-## Native iOS-App auf dem eigenen iPhone
+## Auf dem VPS installieren
 
-Voraussetzungen: macOS mit Xcode, Node.js 22 oder neuer und ein iPhone mit aktiviertem Entwicklermodus. Die App verwendet Capacitor 8, `com.muhemia.emircards` als Bundle-ID und lädt im regulären Build ausschließlich Dateien aus dem App-Paket. Ein lokaler Server und Internet sind nach der Installation nicht nötig.
+Frontend, API und Datenbankschema liegen gemeinsam in diesem Repository. Der vorbereitete Weg verwendet Ubuntu/Debian, Nginx, Node.js und PostgreSQL. Die [VPS-Anleitung](deployment/README.md) enthält die Befehle zum Klonen, Installieren, Aktivieren von HTTPS und Aktualisieren.
 
-```sh
-npm ci
-npm run ios:sync
-npm run ios:open
-```
-
-In Xcode das Projekt **App** und das Ziel **App** auswählen, dann unter **Signing & Capabilities** „Automatically manage signing“ aktivieren und bei **Team** die eigene Apple-ID als „Personal Team“ wählen. Falls Xcode die Bundle-ID als belegt meldet, sie unter **Bundle Identifier** auf eine eigene eindeutige ID ändern. Das iPhone per Kabel verbinden, auf dem Gerät „Diesem Computer vertrauen“ und unter **Einstellungen → Datenschutz & Sicherheit → Entwicklermodus** den Entwicklermodus aktivieren. In Xcode das iPhone als Ziel auswählen und **Run** drücken. Falls iOS nach einer Entwicklerfreigabe fragt, die angezeigten Schritte in **Einstellungen → Allgemein → VPN & Geräteverwaltung** ausführen. Eine kostenpflichtige Mitgliedschaft oder App-Store-Veröffentlichung ist für diese persönliche Installation nicht nötig. Bei kostenloser Signierung kann eine erneute Installation nach Ablauf des Profils nötig sein.
-
-Für spätere React-Änderungen `npm run ios:sync` ausführen und die App danach erneut in Xcode starten. `npm run ios:run` baut, synchronisiert und startet im Simulator. `npm run build` bleibt der Web-Build; `npm run build:ios` erzeugt die native Startseite und lässt den Web-Service-Worker weg. Die iOS-Konfiguration enthält absichtlich keine `server.url`.
-
-Für Live Reload während der Entwicklung in Terminal 1 `npm run dev -- --host 0.0.0.0` und in Terminal 2 `npm run ios:live` ausführen. Die Vorgabe `127.0.0.1` funktioniert im Simulator. Auf einem echten iPhone muss stattdessen `npx cap run ios --live-reload --host <LAN-IP-DES-MAC> --port 5173` verwendet werden; beide Geräte müssen dasselbe Netz verwenden. Live Reload braucht den Entwicklungsserver. Danach **immer** `npm run ios:sync` ausführen, bevor eine offlinefähige Version installiert wird.
-
-Auf iOS werden Ordner, Karten, Lerntermine, Bewertungen und Bilder nach jedem abgeschlossenen Schreibvorgang zusätzlich in einer nativen SQLite-Datenbank gespeichert. Die bestehende Dexie-Datenbank dient der React-Oberfläche als reaktiver Arbeitsspeicher und wird beim App-Start mit SQLite abgeglichen. Vorhandene Daten im **gleichen App-Container** werden beim ersten Start in SQLite übernommen. Die PWA in Safari und die native App haben getrennte Datenspeicher; für den Wechsel ein Anki-Paket (.apkg) in der PWA exportieren und in der nativen App unter **Einstellungen → Anki-Export & Import** importieren. Das ist ein additiver Import; die Karten beginnen dabei in Emir Cards mit neuem Lernfortschritt. Dunkelmodus und das Datum des letzten Exports werden nativ über Capacitor Preferences gespeichert. Exporte öffnen unter iOS das Teilen-Menü, damit die Datei in „Dateien“ gespeichert werden kann. Beim Löschen der App werden ihre lokalen Daten entfernt; regelmäßige Exporte bleiben deshalb wichtig.
-
-## Ausprobieren auf diesem Mac
-
-**`Start.command` doppelklicken** und das Terminal geöffnet lassen. Die App öffnet sich unter **http://localhost:4173/app.html**. Zum Beenden im Terminal `Ctrl+C` drücken. Node.js in einer aktuellen LTS-Version muss installiert sein (Entwicklung und Tests mit Node 24).
-
-Alternativ im Projektordner:
+Nach der dort beschriebenen Systemvorbereitung:
 
 ```sh
+git clone https://github.com/muhemia/Emir_Anki_Project.git
+cd Emir_Anki_Project
 npm ci
 npm run build
-npm run preview
+sudo bash deployment/install.sh cards.meine-domain.de
+sudo certbot certonly --webroot -w /var/www/letsencrypt -d cards.meine-domain.de
+sudo bash deployment/enable-https.sh cards.meine-domain.de
 ```
 
-Dann http://localhost:4173/app.html öffnen. Die Produktionsvorschau enthält den Service Worker und eignet sich für Offline-Tests. Verwende dieselbe Adresse und denselben Browser, damit du dieselbe lokale Sammlung siehst. `localhost:4173`, `127.0.0.1:4173`, der Entwicklungsserver und eine spätere Internetadresse haben jeweils getrennte Daten. Über Export und Import kannst du die Sammlung übertragen.
+`cards.meine-domain.de` durch die eigene Domain ersetzen. Der Installer richtet Datenbank, API-Dienst und tägliche Backups ein. Passwörter werden auf dem VPS erzeugt. Domain/DNS, die HTTPS-Ausstellung und eine Backup-Kopie außerhalb des VPS bleiben Bestandteile der Servereinrichtung.
 
-Für Codeänderungen mit automatischer Aktualisierung:
+## Lokal starten (Mac)
 
-```sh
-npm run dev
-```
-
-Der Entwicklungsserver wird im Terminal angezeigt (normalerweise http://127.0.0.1:5173). Der Service Worker ist dort absichtlich nicht aktiv; Offline-Verhalten mit der Produktionsvorschau testen.
-
-## Installationsseite und App
-
-- **http://localhost:4173/** ist die eigene Webseite zum Installieren, mit Anleitung für iPhone und Android und einem Link zum Ausprobieren.
-- **http://localhost:4173/app.html** ist die eigentliche Lern-App. Die Einstellungen oben rechts enthalten Hell-/Dunkelmodus und Sicherungen. Der Zurück-Pfeil führt zur zuvor besuchten Ansicht. Auf der Startseite steht „Neuer Ordner“ neben „Deine Sammlung“. Ordner lassen sich dort aufklappen, um Unterordner anzulegen, und über das Reihenfolge-Symbol verschieben. Neue Karten erstellst du in einem geöffneten Ordner. „Lernen starten“ befindet sich in dessen Lernübersicht. Die App hat keinen Drawer und keinen Installationsbutton.
-- Installierte PWA-Symbole starten direkt in der Lern-App. Das Manifest verweist auf `app.html`; bereits vorhandene Home-Screen-Verknüpfungen auf die Startseite werden im Standalone-Modus ebenfalls direkt zur Lernansicht geführt.
-- Beide Ansichten verwenden dieselbe Website-Adresse und dieselbe IndexedDB. Ein Wechsel zwischen ihnen überschreibt oder verschiebt keine Karten. Der bisherige PWA-Identifier bleibt erhalten.
-- Die Webseite bleibt eine PWA. Zusätzlich gibt es die oben beschriebene native iOS-App; ihre Daten sind von der Safari-PWA getrennt.
-
-## Version 1
-
-- Dynamischer Ordnerbaum; Ordner können Karten und weitere Ordner enthalten.
-- Ordner erstellen, umbenennen, einfärben, verschieben und mit Bestätigung löschen.
-- Ganze Teilbäume zwischen oberster Ebene und Unterordnern verschieben. Zyklen werden verhindert.
-- Karten mit Text und/oder Bildern auf beiden Seiten; bearbeiten, ansehen, verschieben und löschen.
-- Kartenlisten sind zunächst eingeklappt. „Karten“ mit Pfeil und Anzahl öffnet einen begrenzten Scrollbereich; beim Ordnerwechsel wird er wieder geschlossen. Ordner bleiben direkt sichtbar.
-- Maximal 10 Hauptordner, 10 Unterordner je Ordner und vier Ordnerebenen insgesamt; maximal 1.500 direkte Karten pro Ordner. Erstellen, Verschieben und Importieren prüfen diese Grenzen. Bestehende Inhalte bleiben erhalten.
-- Lernen bezieht sich auf den ausgewählten Ordner einschließlich aller Unterordner und direkter Karten.
-- Neue und fällige Karten, ohne Tageslimit; fällige Wiederholungen vor neuen Karten.
-- FSRS mit Nochmal / Schwer / Gut / Einfach, angezeigten Zeitabständen und Rückgängigmachen der letzten Bewertung dieser Sitzung.
-- Lernschritte 1 und 10 Minuten, Zielbehaltensrate 90 %. Eine mit „Nochmal“ bewertete Karte kehrt zum fälligen Zeitpunkt zurück. Eine Karte wird nicht durch „Gut“ dauerhaft entfernt.
-- Hell-/Dunkelmodus; anfangs an die Systemeinstellung angepasst, die Auswahl wird gespeichert.
-- Offline-Betrieb nach vollständigem Erstladen, einschließlich Bilder, Lernen, Anlegen und Export.
-- Export ausschließlich als echtes Anki-Paket (`.apkg`) mit Decks, Basic-Karten und Bildern: ganze Sammlung mit in Anki übertragbarem Lernstand, ausgewählter Ordner samt Unterordnern ohne Lernstand oder nur die direkt enthaltenen Karten ohne Lernstand. Direkte Kartenpakete werden in Emir Cards ohne neuen Ordner dem beim Import geöffneten Ordner hinzugefügt. Das Paket enthält `collection.anki2` und keine `collection.json`.
-- Import von `.apkg`-Paketen aus aktuellen und älteren Anki-Versionen für einfache Vorder-/Rückseitenkarten mit JPG-, PNG- oder WebP-Bildern. Alte Emir-Cards-ZIP-Sicherungen lassen sich weiterhin importieren. Importierte Anki-Karten beginnen in Emir Cards als neue Karten.
-- Jeder Import ergänzt. Neue interne IDs verhindern Überschreiben; gleiche Ordnernamen auf derselben Ebene werden zu „Biologie (1)“, „Biologie (2)“ usw.
-- Wiederholtes Importieren derselben Datei erzeugt bewusst weitere Kopien.
-
-Die internen Daten liegen in IndexedDB. Bilder werden als Binärdaten gespeichert und zur Anzeige lokal in Blob-URLs umgewandelt. Keine externen Schriftarten, Bilddienste oder CDN-Laufzeitabhängigkeiten.
-
-## Kurz durchtesten
-
-1. „Biologie“ erstellen, darin „Anatomie“, darin „Kopf“.
-2. In Kopf eine Frage und Antwort mit Bild anlegen.
-3. Anatomie öffnen und „Lernen starten“ wählen. Die Kopf-Karte ist enthalten.
-4. Antwort aufdecken, „Nochmal“ wählen und die letzte Bewertung rückgängig machen. Danach „Einfach“ wählen: Die Karte ist erst zum nächsten Termin fällig.
-5. Anatomie über das Drei-Punkte-Menü auf die oberste Ebene verschieben. Die Kopf-Karte behält ihren Lernstand.
-6. Anki-Paket exportieren und zweimal wieder importieren. Vorhandene Ordner bleiben erhalten; neue Kopien werden nummeriert.
-7. In den Einstellungen den Dunkelmodus einschalten und neu laden. Darstellung und Inhalte bleiben erhalten.
-8. Auf „Auch offline bereit“ warten, Seite einmal neu laden, Browser/Computer offline schalten und erneut laden. Karten und Bilder bleiben nutzbar. Auch offline eine neue Karte erstellen.
-
-Löschen ist nach Bestätigung dauerhaft. Vor größeren Änderungen eine Sicherung exportieren.
-
-## Auf einem Handy installieren
-
-Der fertige **`dist/`-Ordner** kann auf statischem HTTPS-Webspace unter einer festen Adresse liegen. Ein laufender Node-Server, Servercode, Zugangsdaten oder eine Datenbank im Internet sind dafür nicht nötig. Die Dateien werden zur Installation und bei App-Updates ausgeliefert; persönliche Lerninhalte bleiben auf dem Gerät.
-
-- iPhone/Safari: Adresse öffnen → Teilen → Zum Home-Bildschirm → als Web-App öffnen → Hinzufügen.
-- Android/Chrome: Adresse öffnen → App installieren.
-- `localhost` auf einem Handy bezeichnet das Handy, nicht diesen Mac. Für Installations- und Offline-Tests auf einem echten Handy ist eine erreichbare **HTTPS-Adresse** erforderlich. Ein einfacher HTTP-Link zur lokalen IP ist dafür nicht ausreichend.
-- Veröffentlichte WebApp: https://emir-cards.round-loon-9426.chatgpt.site/app.html. Ein lokaler Build aktualisiert diese Adresse erst nach einer Sites-Veröffentlichung. Bereits geöffnete Apps übernehmen die neue Version über „Aktualisieren“.
-
-Nach dem ersten vollständigen Laden zeigt die App „Auch offline bereit“. Updates werden angeboten und erst nach deiner Bestätigung aktiviert. Die Website-Adresse langfristig beibehalten; ein Umzug benötigt vorher Export und danach Import.
-
-## Sicherungen und Grenzen
-
-Browser können lokale Daten löschen, etwa bei Speicherknappheit oder beim Entfernen der Website-Daten. „Dauerhaften Speicher anfragen“ in den Einstellungen kann helfen, ersetzt aber keinen Export. Regelmäßig ein `.apkg` außerhalb der App speichern. Die App kann nicht im Hintergrund beliebige Ordner in der iPhone-Dateien-App beschreiben. Ein erfolgreicher Export-Download bedeutet noch nicht, dass du die Datei an einem sicheren Ort abgelegt hast.
-
-Version 1 akzeptiert JPG, PNG und WebP, bis 20 MB je Eingabebild. Bilder werden auf maximal 2.048 Pixel an der längsten Seite verkleinert (PNG bleibt transparent); maximal 20 Bilder je Kartenseite. Karten enthalten einfachen Text mit Zeilenumbrüchen. Exportpakete und enthaltene Medien sind auf jeweils insgesamt 100 MB begrenzt, einzelne gespeicherte Bilder auf 12 MB. Größere Sammlungen in einzelnen Themen exportieren. Beschädigte Dateien werden vor dem Schreiben geprüft; der eigentliche Import läuft in einer Transaktion.
-
-Anki-Import kann komplexe Vorlagen, Lückentexte, Bildverdeckung, Audio und Video nicht in den einfachen Kartentyp der App umwandeln und weist solche Pakete ab. HTML-Formatierungen werden als einfacher Text übernommen. Ankis und Emir Cards' Lernpläne lassen sich nicht verlustfrei ineinander umrechnen: Ein exportiertes `.apkg` kann Karten in Emir Cards wieder hinzufügen, aber den ursprünglichen FSRS-Lernstand dort nicht exakt wiederherstellen. Bereits vorhandene alte ZIP-Sicherungen behalten ihren Lernstand beim Import. Diese Version enthält kein geräteübergreifendes Synchronisieren und keine automatische Anpassung der FSRS-Parameter an die eigene Historie.
-
-## Entwicklung und Prüfungen
+Voraussetzungen: Node.js 22 oder neuer und ein laufender PostgreSQL-Server. Die lokale Datenbank heißt `emir_anki`.
 
 ```sh
 npm ci
-npx playwright install chromium webkit
-npm run check
+createdb emir_anki               # nur beim ersten Mal
+npm run db:schema
 ```
 
-- Vitest + fake-indexeddb: Teilbäume, Verschieben, Löschregeln, FSRS, Undo, vollständige Sicherungen mit Medien, additiver Import, geteilte Themen und beschädigte Pakete.
-- Playwright: vollständige Abläufe in Chromium/Desktop, Chromium mit Android-Viewport und WebKit mit iPhone-Viewport; inklusive Offline-Neustart.
-- Beim Offline-Neustart wird der jeweilige Testserver vollständig abgeschaltet. In Chromium wird zusätzlich die Offline-Emulation aktiviert. WebKit 1.63 hat einen [bestätigten Fehler in der Offline-Emulation mit Service Workern](https://github.com/microsoft/playwright/issues/42775); dort verifiziert der abgeschaltete Server den Start aus dem Cache.
-- Browser-Emulation ersetzt den abschließenden Test auf echten iPhones und Android-Geräten nicht.
+In zwei Terminals starten:
 
-`src/domain.ts` enthält Ordner- und Lernregeln, `src/anki.ts` den Anki-Export und -Import, `src/backup.ts` den Import alter Emir-Cards-ZIP-Dateien, `src/db.ts` die Datenbank und `src/components/` die Dialoge und Lernansicht. Das alte ZIP-Format ist in [FORMAT.md](FORMAT.md) beschrieben.
+```sh
+npm run dev:api   # API auf http://127.0.0.1:3001
+npm run dev       # Web-App auf http://127.0.0.1:5173/app.html
+```
+
+Alternativ startet `Start.command` beide Dienste und öffnet die App. Die API liest `DATABASE_URL` oder die PostgreSQL-Umgebungsvariablen aus `.env`; ein Beispiel steht in `.env.example`. `.env` wird nicht in Git eingecheckt. Die Vite-Entwicklungsansicht leitet `/api` an den lokalen API-Server weiter.
+
+## Konten und Daten
+
+Ein Konto kann direkt auf der Anmeldeseite angelegt werden. Der Benutzername enthält 3–32 Zeichen (`a–z`, `0–9`, `_`, `-`), das Passwort mindestens 8 Zeichen. Passwörter werden mit einem gesalzenen scrypt-Hash gespeichert. Die Anmeldung setzt ein `HttpOnly`-Sitzungscookie; nur die API greift auf PostgreSQL zu. Jede Datenbankzeile für Karten, Ordner, Bilder und Bewertungen enthält die Nutzer-ID. Fremdschlüssel halten die Verweise innerhalb des jeweiligen Nutzerkontos.
+
+Das Datenbankschema liegt in `server/schema.sql`, die Express-API in `server/index.mjs` und der Delta-Abgleich in `server/sync.mjs`. PostgreSQL enthält die gemeinsame Sammlung pro Konto. Auf jedem Gerät hält IndexedDB eine dauerhafte Arbeitskopie; React liest beim Lernen ausschließlich daraus.
+
+Änderungen werden zunächst lokal gespeichert. **„Synchronisieren“ lädt eigene Änderungen hoch und neue Serveränderungen herunter.** Das gilt für Karten, Ordner, Bilder und Lernfortschritt. Ein frisches Gerät lädt nach der ersten Anmeldung einmal die komplette Sammlung. Später werden nur Änderungen seit dem letzten Abgleich übertragen. Alle 30 Sekunden und beim Zurückkehren in die App wird eine kleine Versionsnummer abgefragt; neue Inhalte werden erst nach dem Klick übernommen. Beim Synchronisieren wird eine laufende Lernsitzung beendet, damit kein veralteter Lernstand weiterverwendet wird.
+
+Versionskonflikte bleiben sichtbar, bis eine Fassung ausgewählt wurde. Unterbrochene Uploads werden mit derselben Kennung wiederholt. Löschvermerke verhindern, dass alte Gerätekopien gelöschte Daten unbemerkt wiederherstellen. Lokale Änderungen bleiben bei einem Verbindungsfehler und nach Neuladen erhalten. Der Service Worker ermöglicht nach dem ersten vollständigen Laden des Produktionsbuilds auch einen Offline-Neustart. Die Vite-Entwicklungsansicht hat keinen solchen Offline-App-Cache.
+
+Bei noch nicht übertragenen Änderungen verhindert die App das Abmelden und weist beim Schließen darauf hin. Der lokale Kontenspeicher bleibt bei Logout erhalten. Website-Daten zu löschen entfernt diese Kopie einschließlich unübertragener Änderungen. Eine lokale Gerätekopie ersetzt kein Backup.
+
+Alte browserlokale Sammlungen werden nicht automatisch in ein Konto übernommen, da `localhost` keinen Zugriff auf den Speicher der alten Sites-Adresse hat. Die bisherige Sites-Seite ist auf Eigentümerzugriff begrenzt. Wenn dort noch Karten liegen, dort ein `.apkg` exportieren und es im neuen Konto importieren. Anki-Import startet den Lernfortschritt in Emir Cards neu.
+
+## Karten und Anki
+
+- Ordner mit Unterordnern, Karten mit Text und Bildern und FSRS-Wiederholungen.
+- Export als echtes Anki-Paket (`.apkg`): ganze Sammlung, ausgewählter Ordner mit Unterordnern oder nur dessen direkte Karten.
+- Import von `.apkg` und älteren Emir-Cards-ZIP-Sicherungen; Imports ergänzen vorhandene Karten.
+- Höchstens 10 Hauptordner, 10 direkte Unterordner je Ordner, 4 Ordnerebenen und 1.500 direkte Karten je Ordner.
+
+Die Formatdetails stehen in [FORMAT.md](FORMAT.md).
+
+## Bauen und prüfen
+
+```sh
+npm run build
+npm run test
+npm run test:api
+npm run test:e2e
+```
+
+Die ältere native iOS-Version liegt weiterhin im Projekt und verwendet lokal SQLite. Diese Web-App verwendet PostgreSQL; für einen späteren iOS-Umbau ist die native Speicheranbindung separat anzupassen.
+
+API- und Browsertests benötigen einen lokalen PostgreSQL-Benutzer mit dem Recht, Testdatenbanken anzulegen. Sie verwenden ausschließlich `emir_sync_test_<pid>` beziehungsweise `emir_anki_e2e` und entfernen diese anschließend. Eine bereits vorhandene Browser-Testdatenbank wird nicht überschrieben. `PGHOST`, `PGUSER` und `PGPASSWORD` können für andere PostgreSQL-Installationen gesetzt werden. Die CI startet dafür einen eigenen PostgreSQL-Dienst.
+
+## Hosting und verbleibende Schritte
+
+Installationsskripte, VPS-Checkliste sowie Nginx-, systemd- und Backup-Vorlagen liegen unter [deployment/README.md](deployment/README.md). Lokal laufen Entwicklung und Datenbank bereits; Domain, Zertifikate, Produktionszugangsdaten, Dienstinstallation und externe Backups werden erst auf dem VPS eingerichtet.

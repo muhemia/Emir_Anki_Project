@@ -1,0 +1,14 @@
+[Unit]
+Description=Emir Cards PostgreSQL backup
+After=postgresql.service
+[Service]
+Type=oneshot
+User=emircards
+Group=emircards
+EnvironmentFile=/etc/emir-cards.env
+ExecStart=/usr/bin/node /srv/emir-cards/current/scripts/backup.mjs
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/emir-cards
+UMask=0077

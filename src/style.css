@@ -2282,3 +2282,123 @@ hr {
     right: 8px;
   }
 }
+/* Account entry for the PostgreSQL-backed web app. */
+.auth-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg, #f6f7f4);
+}
+.auth-card {
+  width: min(100%, 420px);
+  padding: 38px;
+  border: 1px solid rgba(37, 77, 66, 0.12);
+  border-radius: 24px;
+  background: var(--surface, white);
+  box-shadow: 0 24px 60px rgba(25, 54, 45, 0.08);
+}
+.auth-card > img {
+  display: block;
+  margin-bottom: 20px;
+}
+.auth-card h1 {
+  margin: 8px 0;
+  font-size: clamp(29px, 5vw, 38px);
+}
+.auth-card > p {
+  color: var(--muted, #65756e);
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+.auth-card form {
+  display: grid;
+  gap: 10px;
+}
+.auth-card label {
+  font-weight: 650;
+  margin-top: 8px;
+}
+.auth-card input {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 10px;
+  border: 1px solid #bdc9c3;
+  background: var(--surface, white);
+  color: var(--text, #172c24);
+  font: inherit;
+}
+.auth-card form > button {
+  margin-top: 16px;
+  justify-content: center;
+}
+.auth-switch {
+  display: block;
+  margin: 20px auto 0;
+  border: 0;
+  background: transparent;
+  color: #254d42;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+.auth-error {
+  color: #ad3333;
+  margin: 8px 0 0;
+}
+
+.sync-bar {
+  max-width: 1180px;
+  margin: 12px auto 0;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line, #d8ded9);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.sync-summary {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex: 1;
+  min-width: 190px;
+}
+.sync-summary strong {
+  font-size: 13px;
+  display: block;
+}
+.sync-summary small {
+  font-size: 11px;
+  display: block;
+  margin-top: 3px;
+  opacity: 0.7;
+}
+.sync-error {
+  margin: 0;
+  width: 100%;
+  font-size: 13px;
+  color: var(--danger);
+}
+.sync-error button {
+  margin-left: 10px;
+  text-decoration: underline;
+}
+.sync-conflicts {
+  max-height: 35vh;
+  overflow: auto;
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+}
+.sync-conflicts li {
+  margin-bottom: 14px;
+}
+@media (max-width: 640px) {
+  .sync-bar {
+    margin: 8px;
+    padding: 10px 12px;
+    gap: 10px;
+  }
+}

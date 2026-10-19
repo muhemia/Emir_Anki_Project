@@ -8,7 +8,7 @@ import {
   Upload,
 } from "lucide-react";
 import { db } from "../db";
-import { persistNative } from "../native-storage";
+import { isNative, persistNative } from "../native-storage";
 import {
   id,
   newSchedule,
@@ -340,8 +340,8 @@ export function CardEditor({
           })}
         </div>
         <p className="small muted">
-          Text, Bilder oder beides. Bilder werden bis 2.048 Pixel gespeichert
-          und bleiben auf deinem Gerät.
+          Text, Bilder oder beides. Bilder werden auf maximal 2.048 Pixel verkleinert
+          und {isNative ? "auf deinem Gerät" : "in deinem Konto"} gespeichert.
         </p>
         <ErrorMessage error={error} />
         <div className="dialog-actions">

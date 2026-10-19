@@ -5,6 +5,19 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,3 +34,47 @@ jobs:
           path: |
             playwright-report/
             test-results/
+  deployment:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci && npm run build
+      - name: Systempakete installieren
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx postgresql postgresql-client certbot
+          sudo systemctl enable --now postgresql
+      - name: Frische VPS-Installation
+        run: sudo env "PATH=$PATH" bash deployment/install.sh cards.example.test
+      - name: HTTPS mit lokaler Test-CA aktivieren
+        run: |
+          sudo mkdir -p /etc/letsencrypt/live/cards.example.test
+          sudo openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=cards.example.test' -addext 'subjectAltName=DNS:cards.example.test' -keyout /etc/letsencrypt/live/cards.example.test/privkey.pem -out /etc/letsencrypt/live/cards.example.test/fullchain.pem
+          sudo env "PATH=$PATH" bash deployment/enable-https.sh cards.example.test
+          sudo chmod 644 /etc/letsencrypt/live/cards.example.test/fullchain.pem
+      - name: Frontend und API durch Nginx prüfen
+        run: node tests/deployment-smoke.mjs
+      - name: Zweites Deployment und Datenerhalt prüfen
+        run: |
+          sudo env "PATH=$PATH" bash deployment/install.sh cards.example.test
+          test "$(sudo -u postgres psql -d emir_cards -Atqc 'SELECT count(*) FROM folders')" = 1
+          sudo nginx -t
+          curl --fail --silent --resolve cards.example.test:443:127.0.0.1 --cacert /etc/letsencrypt/live/cards.example.test/fullchain.pem https://cards.example.test/api/health
+      - name: Automatisches Backup wiederherstellen
+        run: |
+          backup_file=$(sudo find /var/backups/emir-cards -name '*.dump' | sort | tail -1)
+          test -n "$backup_file"
+          sudo -u postgres createdb emir_restore_ci
+          sudo cat "$backup_file" | sudo -u postgres pg_restore --exit-on-error --no-owner --no-privileges --dbname=emir_restore_ci
+          test "$(sudo -u postgres psql -d emir_restore_ci -Atqc 'SELECT count(*) FROM folders')" = 1
+      - name: Diagnose bei Fehlern
+        if: failure()
+        run: |
+          sudo journalctl -u emir-cards -u emir-cards-backup --no-pager -n 80
+          sudo tail -n 40 /var/log/nginx/error.log

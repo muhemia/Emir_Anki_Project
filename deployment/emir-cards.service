@@ -1,0 +1,22 @@
+[Unit]
+Description=Emir Cards API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=emircards
+Group=emircards
+WorkingDirectory=/srv/emir-cards/current
+EnvironmentFile=/etc/emir-cards.env
+ExecStart=/usr/bin/node server/index.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,7 +1,8 @@
-import { test, expect, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import path from "node:path";
 import JSZip from "jszip";
-import { createServer } from "node:http";
+import { createServer, request as proxyRequest } from "node:http";
 import { readFile } from "node:fs/promises";
 
 async function isolatedStaticServer() {
@@ -14,6 +15,22 @@ async function isolatedStaticServer() {
     ".webmanifest": "application/manifest+json",
   };
   const server = createServer(async (req, res) => {
+    if (req.url?.startsWith("/api/")) {
+      const proxy = proxyRequest(
+        "http://127.0.0.1:3011" + req.url,
+        {
+          method: req.method,
+          headers: { ...req.headers, origin: "http://localhost:4174" },
+        },
+        (response) => {
+          res.writeHead(response.statusCode || 502, response.headers);
+          response.pipe(res);
+        },
+      );
+      proxy.on("error", () => res.writeHead(502).end());
+      req.pipe(proxy);
+      return;
+    }
     const pathname = new URL(req.url || "/", "http://localhost").pathname;
     const file = path.resolve(
       "dist",

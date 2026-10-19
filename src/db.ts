@@ -6,6 +6,7 @@ export class CardsDatabase extends Dexie {
   cards!: EntityTable<Flashcard, "id">;
   media!: EntityTable<Media, "id">;
   reviews!: EntityTable<Review, "id">;
+  syncState!: EntityTable<{ id: string; value: any }, "id">;
   constructor(name = "emir-cards-v1") {
     super(name);
     this.version(1).stores({
@@ -14,6 +15,15 @@ export class CardsDatabase extends Dexie {
       media: "id",
       reviews: "id, cardId, createdAt",
     });
+    this.version(2).stores({ syncState: "id" });
   }
 }
-export const db = new CardsDatabase();
+export let db = new CardsDatabase();
+export async function selectAccountDatabase(userId: string) {
+  const name = `emir-cards-account-${userId}`;
+  if (db.name !== name) {
+    db.close();
+    db = new CardsDatabase(name);
+  }
+  await db.open();
+}

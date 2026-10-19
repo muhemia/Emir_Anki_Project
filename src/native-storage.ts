@@ -6,6 +6,7 @@ import {
 } from "@capacitor-community/sqlite";
 import { Preferences } from "@capacitor/preferences";
 import { db } from "./db";
+import { persistRemote } from "./remote";
 import { hydrateSchedule } from "./domain";
 import type { Flashcard, Folder, Media, Review } from "./types";
 
@@ -111,7 +112,10 @@ async function writeSnapshot(changedKinds: Kind[]) {
 // If iOS terminates between the Dexie commit and this commit, the Dexie copy is
 // still present and is reconciled into SQLite on the next launch.
 export function persistNative(changedKinds: Kind[] = kinds) {
-  if (!isNative) return Promise.resolve();
+  if (!isNative)
+    return import.meta.env.MODE === "test"
+      ? Promise.resolve()
+      : persistRemote();
   const operation = pending
     .catch(() => undefined)
     .then(() => writeSnapshot(changedKinds));
@@ -122,7 +126,13 @@ export function persistNative(changedKinds: Kind[] = kinds) {
 export async function initializeNativeStorage() {
   if (!isNative) return;
   const sqlite = new SQLiteConnection(CapacitorSQLite);
-  connection = await sqlite.createConnection("emir-cards", false, "no-encryption", 1, false);
+  connection = await sqlite.createConnection(
+    "emir-cards",
+    false,
+    "no-encryption",
+    1,
+    false,
+  );
   await connection.open();
   await connection.execute(
     "CREATE TABLE IF NOT EXISTS records (kind TEXT NOT NULL, id TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY (kind, id));",
@@ -147,7 +157,9 @@ export async function initializeNativeStorage() {
     for (const [key, payload] of stored) {
       const kind = key.slice(0, key.indexOf(":")) as Kind;
       if (!kinds.includes(kind))
-        throw new Error("Die iPhone-Datenbank enthält einen unbekannten Datentyp.");
+        throw new Error(
+          "Die iPhone-Datenbank enthält einen unbekannten Datentyp.",
+        );
       restored[kind].push(deserialize(kind, payload));
     }
     await db.transaction(
