@@ -384,8 +384,8 @@ export default function App({
                     <Sparkles size={19} />
                   </span>
                   <div>
-                    <strong>{fresh}</strong>
-                    <span>Neue Karten</span>
+                    <strong>{scope.length}</strong>
+                    <span>Karten insgesamt</span>
                   </div>
                 </div>
                 <div className="stat">
@@ -422,10 +422,7 @@ export default function App({
             <div className="collection-toolbar">
               <div className="section-title">
                 <h2>Deine Inhalte</h2>
-                <span>
-                  {scope.length} Karten insgesamt · {visibleCards.length}/1.500
-                  hier
-                </span>
+                <span>{visibleCards.length}/1.500 hier</span>
               </div>
             </div>
           )}
