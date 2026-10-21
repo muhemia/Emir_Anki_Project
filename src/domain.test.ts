@@ -6,6 +6,8 @@ import {
   id,
   moveCard,
   moveFolder,
+  reorderFolder,
+  compareFolders,
   newSchedule,
   reviewCard,
   saveFolder,
@@ -40,6 +42,50 @@ beforeEach(async () => {
 });
 afterAll(() => db.delete());
 describe("Ordner und Lernbereich", () => {
+  it("sortiert über mehrere Positionen und erhält Unterordner samt Karten", async () => {
+    const a = await saveFolder("A", null, "sage", undefined, db);
+    const b = await saveFolder("B", null, "sage", undefined, db);
+    const c = await saveFolder("C", null, "sage", undefined, db);
+    const child = await saveFolder("Kind", c.id, "sage", undefined, db);
+    const original = card(child.id);
+    await db.cards.add(original);
+    const roots = async () =>
+      (await db.folders.toArray())
+        .filter((f) => f.parentId === null)
+        .sort(compareFolders)
+        .map((f) => f.id);
+    await reorderFolder(c.id, a.id, "before", db);
+    expect(await roots()).toEqual([c.id, a.id, b.id]);
+    await reorderFolder(c.id, b.id, "after", db);
+    expect(await roots()).toEqual([a.id, b.id, c.id]);
+    expect(await db.folders.get(child.id)).toEqual(child);
+    expect(await db.cards.get(original.id)).toEqual(original);
+  });
+  it("sortiert nur Geschwister und lehnt andere Ebenen oder Eltern ohne Änderungen ab", async () => {
+    const a = await saveFolder("A", null, "sage", undefined, db);
+    const b = await saveFolder("B", null, "sage", undefined, db);
+    const one = await saveFolder("Eins", a.id, "sage", undefined, db);
+    const two = await saveFolder("Zwei", a.id, "sage", undefined, db);
+    const foreign = await saveFolder("Fremd", b.id, "sage", undefined, db);
+    await reorderFolder(two.id, one.id, "before", db);
+    expect(
+      (await db.folders.toArray())
+        .filter((f) => f.parentId === a.id)
+        .sort(compareFolders)
+        .map((f) => f.id),
+    ).toEqual([two.id, one.id]);
+    const before = await db.folders.toArray();
+    for (const target of [a.id, foreign.id]) {
+      await expect(reorderFolder(one.id, target, "after", db)).rejects.toThrow(
+        "desselben übergeordneten Ordners",
+      );
+      expect(await db.folders.toArray()).toEqual(before);
+    }
+    await expect(reorderFolder(one.id, "removed", "after", db)).rejects.toThrow(
+      "entfernt",
+    );
+    expect(await db.folders.toArray()).toEqual(before);
+  });
   it("sammelt nur Karten im ausgewählten Teilbaum, einschließlich direkter Karten", async () => {
     const bio = await saveFolder("Biologie", null, "sage", undefined, db);
     const anatomy = await saveFolder("Anatomie", bio.id, "blue", undefined, db);

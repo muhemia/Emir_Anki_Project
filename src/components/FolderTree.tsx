@@ -1,18 +1,15 @@
 import {
-  ArrowDown,
-  ArrowUp,
   ArrowUpRight,
+  ChevronRight,
   Folder as FolderIcon,
   FolderPlus,
-  ListOrdered,
-  Minus,
   MoreHorizontal,
   Pencil,
-  Plus,
   Trash2,
 } from "lucide-react";
 import { compareFolders, isDue, scopedCards } from "../domain";
 import type { Flashcard, Folder } from "../types";
+import { FolderDragHandle, useFolderSort } from "./FolderSort";
 import { MAX_FOLDER_DEPTH, MAX_FOLDERS_PER_PARENT } from "../limits";
 
 type Props = {
@@ -29,7 +26,6 @@ type Props = {
   onEdit: (folder: Folder) => void;
   onMove: (id: string) => void;
   onDelete: (folder: Folder) => void;
-  onReorder: (id: string, direction: "up" | "down") => void;
 };
 
 function closeMenus() {
@@ -53,22 +49,21 @@ export function FolderTreeNode(props: Props) {
     onEdit,
     onMove,
     onDelete,
-    onReorder,
   } = props;
-  const siblings = folders
-    .filter((item) => item.parentId === folder.parentId)
-    .sort(compareFolders);
-  const position = siblings.findIndex((item) => item.id === folder.id);
+  const { drag } = useFolderSort();
   const children = folders
     .filter((item) => item.parentId === folder.id)
     .sort(compareFolders);
   const expanded = showChildren && expandedIds.has(folder.id);
   const canNest = depth < MAX_FOLDER_DEPTH;
-  const canExpand = showChildren && (canNest || children.length > 0);
+  const canExpand = showChildren && children.length > 0;
   const contents = scopedCards(cards, folders, folder.id);
   const ready = contents.filter((card) => isDue(card, now)).length;
   return (
-    <article className="folder-card" data-folder-id={folder.id}>
+    <article
+      className={`folder-card ${drag?.active && drag.folder.id === folder.id ? "is-dragging" : ""} ${drag?.drop?.id === folder.id ? `drop-${drag.drop.placement}` : ""}`}
+      data-folder-id={folder.id}
+    >
       <div className="folder-card-row">
         <button
           className="folder-open"
@@ -96,39 +91,36 @@ export function FolderTreeNode(props: Props) {
               aria-controls={`subfolders-${folder.id}`}
               onClick={() => onToggle(folder.id)}
             >
-              {expanded ? <Minus size={20} /> : <Plus size={20} />}
+              <ChevronRight
+                size={20}
+                className={
+                  expanded ? "folder-chevron expanded" : "folder-chevron"
+                }
+              />
             </button>
           )}
-          <details className="item-menu order-menu">
-            <summary aria-label={`Reihenfolge für ${folder.name}`}>
-              <ListOrdered size={20} />
-            </summary>
-            <div className="menu-panel">
-              <button
-                disabled={position <= 0}
-                onClick={() => {
-                  closeMenus();
-                  onReorder(folder.id, "up");
-                }}
-              >
-                <ArrowUp size={16} /> Nach oben
-              </button>
-              <button
-                disabled={position >= siblings.length - 1}
-                onClick={() => {
-                  closeMenus();
-                  onReorder(folder.id, "down");
-                }}
-              >
-                <ArrowDown size={16} /> Nach unten
-              </button>
-            </div>
-          </details>
+          <FolderDragHandle folder={folder} />
           <details className="item-menu">
             <summary aria-label={`Aktionen für ${folder.name}`}>
               <MoreHorizontal size={21} />
             </summary>
             <div className="menu-panel">
+              {canNest && (
+                <button
+                  disabled={children.length >= MAX_FOLDERS_PER_PARENT}
+                  title={
+                    children.length >= MAX_FOLDERS_PER_PARENT
+                      ? "Maximal 10 Unterordner pro Ordner"
+                      : undefined
+                  }
+                  onClick={() => {
+                    closeMenus();
+                    onAdd(folder.id);
+                  }}
+                >
+                  <FolderPlus size={16} /> Unterordner hinzufügen
+                </button>
+              )}
               <button
                 onClick={() => {
                   closeMenus();
@@ -164,31 +156,15 @@ export function FolderTreeNode(props: Props) {
           className="subfolder-list"
           hidden={!expanded}
         >
-          {expanded && (
-            <>
-              {children.map((child) => (
-                <FolderTreeNode
-                  key={child.id}
-                  {...props}
-                  folder={child}
-                  depth={depth + 1}
-                />
-              ))}
-              {canNest && (
-                <button
-                  className="add-subfolder"
-                  onClick={() => onAdd(folder.id)}
-                  disabled={children.length >= MAX_FOLDERS_PER_PARENT}
-                  title="Maximal 10 Unterordner pro Ordner"
-                >
-                  <FolderPlus size={18} />
-                  {children.length >= MAX_FOLDERS_PER_PARENT
-                    ? "10/10 Unterordner"
-                    : "Unterordner hinzufügen"}
-                </button>
-              )}
-            </>
-          )}
+          {expanded &&
+            children.map((child) => (
+              <FolderTreeNode
+                key={child.id}
+                {...props}
+                folder={child}
+                depth={depth + 1}
+              />
+            ))}
         </div>
       )}
     </article>

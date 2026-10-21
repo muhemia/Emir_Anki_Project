@@ -40,6 +40,7 @@ import type { Flashcard, Folder } from "./types";
 import { FolderEditor, CardEditor, MoveDialog } from "./components/Editors";
 import { BackupDialog } from "./components/BackupDialog";
 import { Study } from "./components/Study";
+import { FolderSort } from "./components/FolderSort";
 import { FolderTreeNode } from "./components/FolderTree";
 import { Modal, CardImage, ErrorMessage, errorText } from "./components/ui";
 import {
@@ -427,40 +428,47 @@ export default function App({
             </div>
           )}
           {visibleFolders.length > 0 && (
-            <section className="folder-tree" aria-label="Ordner">
-              {visibleFolders.map((f) => (
-                <FolderTreeNode
-                  key={f.id}
-                  folder={f}
-                  folders={folders}
-                  cards={cards}
-                  now={now}
-                  expandedIds={expandedFolderIds}
-                  showChildren
-                  depth={childFolderDepth}
-                  onToggle={toggleFolder}
-                  onOpen={navigate}
-                  onAdd={(parentId) =>
-                    open({ kind: "folder", parentId, fromTree: true })
-                  }
-                  onEdit={(item) => open({ kind: "folder", folder: item })}
-                  onMove={(id) => open({ kind: "move", item: "folder", id })}
-                  onDelete={(item) =>
-                    open({
-                      kind: "delete",
-                      item: "folder",
-                      id: item.id,
-                      name: item.name,
-                    })
-                  }
-                  onReorder={(id, direction) =>
-                    void reorderFolder(id, direction).catch((e) =>
-                      setToast(errorText(e)),
-                    )
-                  }
-                />
-              ))}
-            </section>
+            <FolderSort
+              folders={folders}
+              onReorder={async (id, targetId, placement) => {
+                try {
+                  await reorderFolder(id, targetId, placement);
+                } catch (e) {
+                  setToast(errorText(e));
+                  throw e;
+                }
+              }}
+            >
+              <section className="folder-tree" aria-label="Ordner">
+                {visibleFolders.map((f) => (
+                  <FolderTreeNode
+                    key={f.id}
+                    folder={f}
+                    folders={folders}
+                    cards={cards}
+                    now={now}
+                    expandedIds={expandedFolderIds}
+                    showChildren
+                    depth={childFolderDepth}
+                    onToggle={toggleFolder}
+                    onOpen={navigate}
+                    onAdd={(parentId) =>
+                      open({ kind: "folder", parentId, fromTree: true })
+                    }
+                    onEdit={(item) => open({ kind: "folder", folder: item })}
+                    onMove={(id) => open({ kind: "move", item: "folder", id })}
+                    onDelete={(item) =>
+                      open({
+                        kind: "delete",
+                        item: "folder",
+                        id: item.id,
+                        name: item.name,
+                      })
+                    }
+                  />
+                ))}
+              </section>
+            </FolderSort>
           )}
           {visibleCards.length > 0 && (
             <section className="cards-section" aria-label="Karteikarten">
@@ -631,13 +639,18 @@ export default function App({
           fromTree={dialog.fromTree}
           onImport={() => open({ kind: "backup", tab: "import" })}
           onClose={() => setDialog(undefined)}
-          onSaved={() =>
+          onSaved={() => {
+            if (dialog.fromTree && dialog.parentId && !dialog.folder) {
+              setExpandedFolderIds(
+                (ids) => new Set([...ids, dialog.parentId!]),
+              );
+            }
             saved(
               dialog.folder
                 ? "Ordner gespeichert."
                 : "Dein neuer Ordner ist bereit.",
-            )
-          }
+            );
+          }}
         />
       )}
       {dialog?.kind === "card" && (

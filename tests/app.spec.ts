@@ -80,7 +80,7 @@ async function createFolder(page: Page, name: string) {
       .click();
   } else {
     await root(page);
-    for (const ancestor of route.slice(1)) {
+    for (const ancestor of route.slice(1, -1)) {
       const toggle = page.getByRole("button", {
         name: new RegExp(`^Unterordner von ${ancestor} (anzeigen|ausblenden)$`),
       });
@@ -88,13 +88,10 @@ async function createFolder(page: Page, name: string) {
         await toggle.click();
     }
     await page
-      .locator(".folder-card")
-      .filter({
-        has: page.getByRole("button", {
-          name: `Ordner ${route.at(-1)} öffnen`,
-        }),
-      })
-      .last()
+      .getByLabel(`Aktionen für ${route.at(-1)}`, { exact: true })
+      .click();
+    await page
+      .locator("details[open]")
       .getByRole("button", { name: "Unterordner hinzufügen" })
       .click();
   }
@@ -217,6 +214,78 @@ test("leere Sammlung, Hell/Dunkel, mobile Darstellung und persistente Daten", as
   expect(overflow).toBe(false);
 });
 
+test("Ordner lassen sich am Griff frei sortieren, aber nicht auf eine andere Ebene ziehen", async ({
+  page,
+}) => {
+  for (const name of ["Alpha", "Beta", "Gamma"]) await createFolder(page, name);
+  const roots = page.locator(
+    ".folder-tree > .folder-card > .folder-card-row .folder-card-text strong",
+  );
+  async function drag(
+    source: string,
+    target: string,
+    after = false,
+    cancel = false,
+  ) {
+    const handle = page.getByRole("button", {
+      name: `Ordner ${source} sortieren`,
+      exact: true,
+    });
+    const targetButton = page.getByRole("button", {
+      name: `Ordner ${target} öffnen`,
+      exact: true,
+    });
+    await handle.scrollIntoViewIfNeeded();
+    const from = await handle.boundingBox();
+    const to = await targetButton.boundingBox();
+    if (!from || !to) throw new Error("Ordner nicht sichtbar");
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(
+      to.x + to.width / 2,
+      to.y + to.height * (after ? 0.75 : 0.25),
+      { steps: 10 },
+    );
+    if (cancel) await page.keyboard.press("Escape");
+    await page.mouse.up();
+  }
+  await drag("Gamma", "Alpha");
+  await expect(roots).toHaveText(["Gamma", "Alpha", "Beta"]);
+  await drag("Gamma", "Beta", true, true);
+  await expect(roots).toHaveText(["Gamma", "Alpha", "Beta"]);
+  await page.reload();
+  await expect(roots).toHaveText(["Gamma", "Alpha", "Beta"]);
+  for (const child of ["Eins", "Zwei"]) {
+    await actions(page, "Gamma", "Unterordner hinzufügen");
+    await page.getByLabel("Name", { exact: true }).fill(child);
+    await page.getByRole("button", { name: "Bestätigen", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
+  const children = page
+    .locator(".folder-tree > .folder-card")
+    .first()
+    .locator(
+      ".subfolder-list > .folder-card > .folder-card-row .folder-card-text strong",
+    );
+  await expect(children).toHaveText(["Eins", "Zwei"]);
+  await drag("Zwei", "Eins");
+  await expect(children).toHaveText(["Zwei", "Eins"]);
+  await drag("Zwei", "Gamma");
+  await expect(children).toHaveText(["Zwei", "Eins"]);
+  await expect(roots).toHaveText(["Gamma", "Alpha", "Beta"]);
+  await drag("Gamma", "Eins");
+  await expect(roots).toHaveText(["Gamma", "Alpha", "Beta"]);
+  await expect(children).toHaveText(["Zwei", "Eins"]);
+  await page.reload();
+  await page
+    .getByRole("button", {
+      name: "Unterordner von Gamma anzeigen",
+      exact: true,
+    })
+    .click();
+  await expect(children).toHaveText(["Zwei", "Eins"]);
+});
+
 test("Hauptmenü zeigt nur Ordner, Unterordner klappen auf und Reihenfolge bleibt erhalten", async ({
   page,
 }) => {
@@ -234,22 +303,27 @@ test("Hauptmenü zeigt nur Ordner, Unterordner klappen auf und Reihenfolge bleib
     ".folder-tree > .folder-card > .folder-card-row .folder-card-text strong",
   );
   await expect(rootNames).toHaveText(["Bio", "Chemie", "Physik"]);
-  await page.getByLabel("Reihenfolge für Physik").click();
-  await page
-    .locator("details[open]")
-    .getByRole("button", { name: "Nach oben" })
-    .click();
-  await expect(rootNames).toHaveText(["Bio", "Physik", "Chemie"]);
+  const handle = page.getByRole("button", { name: "Ordner Physik sortieren" });
+  await handle.focus();
+  await handle.press("Space");
+  await handle.press("Home");
+  await handle.press("Enter");
+  await expect(rootNames).toHaveText(["Physik", "Bio", "Chemie"]);
   await page.reload();
-  await expect(rootNames).toHaveText(["Bio", "Physik", "Chemie"]);
+  await expect(rootNames).toHaveText(["Physik", "Bio", "Chemie"]);
 
-  await page
-    .getByRole("button", { name: "Unterordner von Bio anzeigen" })
-    .click();
-  const bio = page.locator(".folder-tree > .folder-card").first();
+  const bio = page
+    .locator(".folder-tree > .folder-card")
+    .filter({
+      has: page.getByRole("button", { name: "Ordner Bio öffnen", exact: true }),
+    });
+  await expect(
+    bio.getByRole("button", { name: "Unterordner von Bio anzeigen" }),
+  ).toHaveCount(0);
   await expect(
     bio.getByRole("button", { name: "Unterordner hinzufügen" }),
-  ).toBeVisible();
+  ).not.toBeVisible();
+  await page.getByLabel("Aktionen für Bio", { exact: true }).click();
   await bio.getByRole("button", { name: "Unterordner hinzufügen" }).click();
   await expect(
     page.getByRole("dialog", { name: "Neuer Unterordner" }),
@@ -260,8 +334,18 @@ test("Hauptmenü zeigt nur Ordner, Unterordner klappen auf und Reihenfolge bleib
     bio.getByRole("button", { name: "Ordner Zellbiologie öffnen" }),
   ).toBeVisible();
   await expect(
-    bio.locator(".subfolder-list").first().locator(":scope > *").last(),
-  ).toHaveClass(/add-subfolder/);
+    bio.locator(".subfolder-list").first().locator(":scope > *"),
+  ).toHaveCount(1);
+  await expect(bio.locator(".add-subfolder")).toHaveCount(0);
+  await expect(
+    bio.getByRole("button", { name: "Unterordner hinzufügen" }),
+  ).not.toBeVisible();
+  await page
+    .getByRole("button", { name: "Unterordner von Bio ausblenden" })
+    .click();
+  await expect(
+    bio.getByRole("button", { name: "Ordner Zellbiologie öffnen" }),
+  ).not.toBeVisible();
   await page.reload();
   await page
     .getByRole("button", { name: "Unterordner von Bio anzeigen" })

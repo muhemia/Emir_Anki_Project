@@ -707,6 +707,71 @@ hr {
 }
 .folder-tree .folder-card {
   border-radius: 16px;
+  position: relative;
+}
+.folder-chevron {
+  transition: transform 180ms ease;
+}
+.folder-chevron.expanded {
+  transform: rotate(90deg);
+}
+.folder-drag-handle {
+  cursor: grab;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+.folder-drag-handle:active,
+.folder-sorting,
+.folder-sorting * {
+  cursor: grabbing !important;
+}
+.folder-sorting {
+  user-select: none;
+}
+.folder-tree .folder-card.is-dragging {
+  opacity: 0.4;
+}
+.folder-card.drop-before::before,
+.folder-card.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 2;
+}
+.folder-card.drop-before::before {
+  top: -5px;
+}
+.folder-card.drop-after::after {
+  bottom: -5px;
+}
+.folder-drag-preview {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 196px;
+  padding: 12px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 8px 30px #0003;
+  pointer-events: none;
+}
+.folder-drag-preview span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-drag-preview svg {
+  flex: none;
 }
 .folder-tree .folder-card:hover {
   transform: none;

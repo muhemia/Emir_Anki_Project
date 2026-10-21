@@ -123,19 +123,24 @@ export async function saveFolder(
 }
 export async function reorderFolder(
   folderId: string,
-  direction: "up" | "down",
+  targetId: string,
+  placement: "before" | "after",
   database = db,
 ) {
   await database.transaction("rw", database.folders, async () => {
     const folder = await database.folders.get(folderId);
-    if (!folder) throw new Error("Der Ordner wurde entfernt.");
+    const target = await database.folders.get(targetId);
+    if (!folder || !target) throw new Error("Der Ordner wurde entfernt.");
+    if (folder.parentId !== target.parentId)
+      throw new Error(
+        "Ordner können nur innerhalb desselben übergeordneten Ordners sortiert werden.",
+      );
+    if (folderId === targetId) return;
     const siblings = (await database.folders.toArray())
-      .filter((f) => f.parentId === folder.parentId)
+      .filter((f) => f.parentId === folder.parentId && f.id !== folderId)
       .sort(compareFolders);
-    const index = siblings.findIndex((f) => f.id === folderId);
-    const next = index + (direction === "up" ? -1 : 1);
-    if (next < 0 || next >= siblings.length) return;
-    [siblings[index], siblings[next]] = [siblings[next], siblings[index]];
+    const index = siblings.findIndex((f) => f.id === targetId);
+    siblings.splice(index + (placement === "after" ? 1 : 0), 0, folder);
     await database.folders.bulkPut(
       siblings.map((sibling, order) => ({ ...sibling, sortOrder: order })),
     );
