@@ -312,11 +312,9 @@ test("Hauptmenü zeigt nur Ordner, Unterordner klappen auf und Reihenfolge bleib
   await page.reload();
   await expect(rootNames).toHaveText(["Physik", "Bio", "Chemie"]);
 
-  const bio = page
-    .locator(".folder-tree > .folder-card")
-    .filter({
-      has: page.getByRole("button", { name: "Ordner Bio öffnen", exact: true }),
-    });
+  const bio = page.locator(".folder-tree > .folder-card").filter({
+    has: page.getByRole("button", { name: "Ordner Bio öffnen", exact: true }),
+  });
   await expect(
     bio.getByRole("button", { name: "Unterordner von Bio anzeigen" }),
   ).toHaveCount(0);
@@ -755,6 +753,129 @@ test("500 Karten bleiben eingeklappt und im eigenen Bereich bedienbar", async ({
   await expect(toggle).toContainText("500");
   await toggle.click();
   await expect(list.locator(".card-row")).toHaveCount(500);
+});
+
+test("Unterordner-Import übernimmt das Menü-Ziel statt der geöffneten Sammlung", async ({
+  page,
+}) => {
+  await createFolder(page, "Anatomie");
+  const rootNames = page.locator(
+    ".folder-tree > .folder-card > .folder-card-row .folder-card-text strong",
+  );
+  // Both imports start from the collection, including one into a nested folder.
+  for (const target of ["Anatomie", "German"]) {
+    const menu = page.getByLabel(`Aktionen für ${target}`, { exact: true });
+    const grip = page.getByRole("button", {
+      name: `Ordner ${target} sortieren`,
+      exact: true,
+    });
+    const menuBox = await menu.boundingBox();
+    const gripBox = await grip.boundingBox();
+    const iconBox = await menu.locator("svg").boundingBox();
+    expect(menuBox).not.toBeNull();
+    expect(gripBox).not.toBeNull();
+    expect(iconBox).not.toBeNull();
+    expect(
+      Math.abs(
+        menuBox!.y + menuBox!.height / 2 - (gripBox!.y + gripBox!.height / 2),
+      ),
+    ).toBeLessThan(1);
+    expect(
+      Math.abs(
+        iconBox!.x + iconBox!.width / 2 - (menuBox!.x + menuBox!.width / 2),
+      ),
+    ).toBeLessThan(1);
+    expect(
+      Math.abs(
+        iconBox!.y + iconBox!.height / 2 - (menuBox!.y + menuBox!.height / 2),
+      ),
+    ).toBeLessThan(1);
+    await actions(page, target, "Unterordner hinzufügen");
+    await page
+      .getByRole("button", { name: "Ordner importieren", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toContainText(
+      `zu „${target}“ hinzu`,
+    );
+    await page
+      .getByLabel("Sicherungsdatei auswählen", { exact: true })
+      .setInputFiles(path.resolve("tests/fixtures/anki-modern.apkg"));
+    await expect(
+      page.getByText("2 Ordner · 1 Karten · 1 Bilder"),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Zur Sammlung hinzufügen" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(rootNames).toHaveText(["Anatomie"]);
+  }
+  await page.reload();
+  await expect(rootNames).toHaveText(["Anatomie"]);
+  await page
+    .getByRole("button", {
+      name: "Unterordner von Anatomie anzeigen",
+      exact: true,
+    })
+    .click();
+  await openFolder(page, "German");
+  await expect(
+    page.getByRole("button", { name: "Ordner German öffnen", exact: true }),
+  ).toBeVisible();
+});
+
+test("Anki-Dateien per Drag-and-drop prüfen und importieren", async ({
+  page,
+}) => {
+  await backup(page);
+  await page.getByRole("button", { name: "Importieren", exact: true }).click();
+  const dropzone = page.locator(".dropzone");
+  const importButton = page.getByRole("button", {
+    name: "Zur Sammlung hinzufügen",
+  });
+  const bytes = Array.from(
+    await readFile(path.resolve("tests/fixtures/anki-modern.apkg")),
+  );
+  async function transfer(names: string[]) {
+    return page.evaluateHandle(
+      ({ bytes, names }) => {
+        const data = new DataTransfer();
+        for (const name of names)
+          data.items.add(
+            new File([new Uint8Array(bytes)], name, {
+              type: "application/octet-stream",
+            }),
+          );
+        return data;
+      },
+      { bytes, names },
+    );
+  }
+  const multiple = await transfer(["eins.apkg", "zwei.apkg"]);
+  await dropzone.dispatchEvent("drop", { dataTransfer: multiple });
+  await multiple.dispose();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Bitte genau eine .apkg- oder .zip-Datei ablegen.",
+  );
+  await expect(importButton).toBeDisabled();
+  const wrong = await transfer(["datei.txt"]);
+  await dropzone.dispatchEvent("drop", { dataTransfer: wrong });
+  await wrong.dispose();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Bitte wähle eine .apkg- oder .zip-Datei.",
+  );
+  await expect(importButton).toBeDisabled();
+  const valid = await transfer(["Anki-Paket.APKG"]);
+  await dropzone.dispatchEvent("dragenter", { dataTransfer: valid });
+  await expect(dropzone).toHaveClass(/drag-over/);
+  await expect(dropzone).toContainText("Datei hier ablegen");
+  await dropzone.dispatchEvent("drop", { dataTransfer: valid });
+  await valid.dispose();
+  await expect(dropzone).not.toHaveClass(/drag-over/);
+  await expect(page.getByText("2 Ordner · 1 Karten · 1 Bilder")).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(importButton).toBeEnabled();
+  await importButton.click();
+  await expect(
+    page.getByRole("button", { name: "Ordner German öffnen", exact: true }),
+  ).toBeVisible();
 });
 
 test("echtes aktuelles Anki-Paket importieren und als .apkg exportieren", async ({

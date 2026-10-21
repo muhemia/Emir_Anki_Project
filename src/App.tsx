@@ -54,7 +54,7 @@ type Dialog =
   | { kind: "card"; card?: Flashcard }
   | { kind: "move"; item: "folder" | "card"; id: string }
   | { kind: "delete"; item: "folder" | "card"; id: string; name: string }
-  | { kind: "backup"; tab?: "export" | "import" }
+  | { kind: "backup"; tab?: "export" | "import"; folderId?: string | null }
   | { kind: "settings" }
   | { kind: "preview"; card: Flashcard };
 function closeMenus() {
@@ -194,6 +194,10 @@ export default function App({
     );
   const { folders, cards, today } = data;
   const folder = folders.find((f) => f.id === currentId);
+  const backupFolderId =
+    dialog?.kind === "backup" && dialog.folderId !== undefined
+      ? dialog.folderId
+      : currentId;
   const title = folder?.name || "Deine Sammlung";
   const scope = scopedCards(cards, folders, currentId);
   const scopeIds = new Set(scope.map((c) => c.id));
@@ -637,7 +641,13 @@ export default function App({
           folder={dialog.folder}
           parentId={dialog.parentId ?? currentId}
           fromTree={dialog.fromTree}
-          onImport={() => open({ kind: "backup", tab: "import" })}
+          onImport={() =>
+            open({
+              kind: "backup",
+              tab: "import",
+              folderId: dialog.parentId ?? currentId,
+            })
+          }
           onClose={() => setDialog(undefined)}
           onSaved={() => {
             if (dialog.fromTree && dialog.parentId && !dialog.folder) {
@@ -685,14 +695,21 @@ export default function App({
       {dialog?.kind === "backup" && (
         <BackupDialog
           initialTab={dialog.tab}
-          folderId={currentId}
-          folderName={folder?.name || "Sammlung"}
+          folderId={backupFolderId}
+          folderName={
+            folders.find((f) => f.id === backupFolderId)?.name || "Sammlung"
+          }
           hasContent={!!(folders.length || cards.length)}
           directCardCount={
-            cards.filter((card) => card.folderId === currentId).length
+            cards.filter((card) => card.folderId === backupFolderId).length
           }
           onClose={() => setDialog(undefined)}
-          onSaved={setToast}
+          onSaved={(message) => {
+            setToast(message);
+            if (dialog.tab === "import" && backupFolderId) {
+              setExpandedFolderIds((ids) => new Set([...ids, backupFolderId]));
+            }
+          }}
         />
       )}
       {dialog?.kind === "delete" && (

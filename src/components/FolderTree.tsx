@@ -102,7 +102,7 @@ export function FolderTreeNode(props: Props) {
           <FolderDragHandle folder={folder} />
           <details className="item-menu">
             <summary aria-label={`Aktionen für ${folder.name}`}>
-              <MoreHorizontal size={21} />
+              <MoreHorizontal size={20} />
             </summary>
             <div className="menu-panel">
               {canNest && (

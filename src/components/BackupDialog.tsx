@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import JSZip from "jszip";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
@@ -39,6 +39,9 @@ export function BackupDialog({
   const [error, setError] = useState("");
   const [prepared, setPrepared] = useState<PreparedImport>();
   const [fileName, setFileName] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const dragDepth = useRef(0);
+  const reading = useRef(false);
   async function download() {
     setBusy(true);
     setError("");
@@ -100,12 +103,15 @@ export function BackupDialog({
     }
   }
   async function read(file?: File) {
-    if (!file) return;
+    if (!file || busy || reading.current) return;
+    reading.current = true;
     setBusy(true);
     setPrepared(undefined);
     setError("");
     setFileName(file.name);
     try {
+      if (!/\.(apkg|zip)$/i.test(file.name))
+        throw new Error("Bitte wähle eine .apkg- oder .zip-Datei.");
       if (file.size > 100 * 1024 * 1024)
         throw new Error("Bitte wähle eine Datei unter 100 MB.");
       const zip = await JSZip.loadAsync(await file.arrayBuffer());
@@ -117,6 +123,7 @@ export function BackupDialog({
     } catch (e) {
       setError(errorText(e));
     } finally {
+      reading.current = false;
       setBusy(false);
     }
   }
@@ -247,10 +254,46 @@ export function BackupDialog({
               Dein vorhandener Bestand bleibt erhalten. Gleiche Ordnernamen
               werden nummeriert.
             </p>
-            <label className={`dropzone ${busy ? "disabled" : ""}`}>
+            <label
+              className={`dropzone ${busy ? "disabled" : ""} ${dragOver ? "drag-over" : ""}`}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                if (busy || !event.dataTransfer.types.includes("Files")) return;
+                dragDepth.current += 1;
+                setDragOver(true);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = busy ? "none" : "copy";
+              }}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                dragDepth.current = Math.max(0, dragDepth.current - 1);
+                if (!dragDepth.current) setDragOver(false);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                dragDepth.current = 0;
+                setDragOver(false);
+                if (busy || reading.current) return;
+                const files = event.dataTransfer.files;
+                if (files.length !== 1) {
+                  setPrepared(undefined);
+                  setFileName("");
+                  setError("Bitte genau eine .apkg- oder .zip-Datei ablegen.");
+                  return;
+                }
+                void read(files[0]);
+              }}
+            >
               <FileArchive size={34} />
               <strong>
-                {busy ? "Datei wird geprüft …" : "Sicherungsdatei auswählen"}
+                {busy
+                  ? "Datei wird geprüft …"
+                  : dragOver
+                    ? "Datei hier ablegen"
+                    : "Datei hier ablegen oder auswählen"}
               </strong>
               <span>Anki .apkg oder Emir-Cards-ZIP · bis 100 MB</span>
               <input
