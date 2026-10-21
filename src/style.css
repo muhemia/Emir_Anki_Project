@@ -2293,10 +2293,11 @@ hr {
 .auth-card {
   width: min(100%, 420px);
   padding: 38px;
-  border: 1px solid rgba(37, 77, 66, 0.12);
+  border: 1px solid var(--line);
   border-radius: 24px;
-  background: var(--surface, white);
-  box-shadow: 0 24px 60px rgba(25, 54, 45, 0.08);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
 }
 .auth-card > img {
   display: block;
@@ -2323,9 +2324,6 @@ hr {
   width: 100%;
   padding: 13px 14px;
   border-radius: 10px;
-  border: 1px solid #bdc9c3;
-  background: var(--surface, white);
-  color: var(--text, #172c24);
   font: inherit;
 }
 .auth-card form > button {
@@ -2337,13 +2335,13 @@ hr {
   margin: 20px auto 0;
   border: 0;
   background: transparent;
-  color: #254d42;
+  color: var(--accent);
   cursor: pointer;
   font: inherit;
   text-decoration: underline;
 }
 .auth-error {
-  color: #ad3333;
+  color: var(--danger);
   margin: 8px 0 0;
 }
 
