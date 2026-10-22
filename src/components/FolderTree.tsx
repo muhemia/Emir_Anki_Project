@@ -76,6 +76,8 @@ export function FolderTreeNode(props: Props) {
           <span className="folder-card-text">
             <strong>{folder.name}</strong>
             <small>
+              {children.length} Unterordner
+              <span aria-hidden="true"> · </span>
               {contents.length} {contents.length === 1 ? "Karte" : "Karten"}
               <span aria-hidden="true"> · </span>
               {ready > 0 ? `${ready} bereit` : "Alles im Blick"}
