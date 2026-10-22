@@ -500,7 +500,11 @@ test("Export, zweimal additiver Import, Bilder und vollständiger Offline-Neusta
       .click();
     await page
       .getByLabel("Sicherungsdatei auswählen", { exact: true })
-      .setInputFiles(file!);
+      .setInputFiles({
+        name: download.suggestedFilename(),
+        mimeType: "application/octet-stream",
+        buffer: await readFile(file!),
+      });
     await expect(
       page.getByText("1 Ordner · 1 Karten · 1 Bilder"),
     ).toBeVisible();
@@ -520,7 +524,11 @@ test("Export, zweimal additiver Import, Bilder und vollständiger Offline-Neusta
     await expect(page.getByRole("dialog")).toHaveCount(1);
     await page
       .getByLabel("Sicherungsdatei auswählen", { exact: true })
-      .setInputFiles(file!);
+      .setInputFiles({
+        name: download.suggestedFilename(),
+        mimeType: "application/octet-stream",
+        buffer: await readFile(file!),
+      });
     await page.getByRole("button", { name: "Zur Sammlung hinzufügen" }).click();
     await expect(
       page.getByRole("button", {
@@ -590,7 +598,11 @@ test("Anki-Paket kann in der App exportiert und wieder importiert werden", async
       .click();
     await page
       .getByLabel("Sicherungsdatei auswählen", { exact: true })
-      .setInputFiles((await download.path())!);
+      .setInputFiles({
+        name: download.suggestedFilename(),
+        mimeType: "application/octet-stream",
+        buffer: await readFile((await download.path())!),
+      });
     await expect(
       page.getByText("1 Ordner · 1 Karten · 1 Bilder"),
     ).toBeVisible();
