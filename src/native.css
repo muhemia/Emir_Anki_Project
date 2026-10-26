@@ -1,6 +1,7 @@
-/* The installed app has its own compact, touch-first layout. */
+/* Touch-friendly layout that also uses the available desktop width. */
 .native-shell {
-  max-width: 600px;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
   min-height: 100dvh;
   background: var(--bg);
@@ -518,7 +519,8 @@
   bottom: calc(20px + env(safe-area-inset-bottom));
 }
 .study-page {
-  max-width: 600px;
+  width: 100%;
+  max-width: none;
   padding: calc(16px + env(safe-area-inset-top)) 20px
     calc(25px + env(safe-area-inset-bottom));
 }
@@ -536,9 +538,23 @@
   min-height: 89px;
 }
 @media (min-width: 700px) {
-  .native-shell {
-    border-left: 1px solid var(--line);
-    border-right: 1px solid var(--line);
+  .native-header,
+  .native-shell .native-crumbs,
+  .native-shell .main-content,
+  .study-page {
+    padding-left: clamp(24px, 4vw, 80px);
+    padding-right: clamp(24px, 4vw, 80px);
+  }
+  .sync-bar {
+    max-width: none;
+    margin-left: clamp(24px, 4vw, 80px);
+    margin-right: clamp(24px, 4vw, 80px);
+  }
+  .study-question > p,
+  .study-answer > p {
+    max-width: 75ch;
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 @media (max-width: 620px) {
