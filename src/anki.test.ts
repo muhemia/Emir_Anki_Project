@@ -29,6 +29,32 @@ beforeEach(async () => {
 afterAll(() => database.delete());
 
 describe("Anki-Pakete", () => {
+  it("importiert Lücken als getrennte Karten, versteckt Bilder und erhält Zusatztexte beim Export", async () => {
+    const prepared = await prepareAnkiImport(
+      new Blob([await readFile("tests/fixtures/cloze.apkg")]),
+    );
+    expect(prepared.data.cards).toHaveLength(2);
+    const [first, second] = prepared.data.cards;
+    expect(first.front).toBe("Das [Organ] pumpt Blut. […]");
+    expect(first.frontImages).toHaveLength(0);
+    expect(second.front).toBe("Das Herz pumpt […].");
+    expect(second.frontImages).toHaveLength(1);
+    expect(first.back).toContain("Das Herz pumpt Blut.");
+    expect(first.back).toContain("Zusatzwissen zur Karte.");
+    expect(first.backImages).toHaveLength(1);
+    await commitImport(prepared, null, database);
+    const roundtrip = await prepareAnkiImport(
+      await exportAnkiPackage(null, false, database),
+    );
+    expect(roundtrip.data.cards.map((c) => c.front).sort()).toEqual(
+      prepared.data.cards.map((c) => c.front).sort(),
+    );
+    expect(
+      roundtrip.data.cards.every((c) =>
+        c.back.includes("Zusatzwissen zur Karte."),
+      ),
+    ).toBe(true);
+  });
   it("akzeptiert am Datei-Größengate 200 MB und lehnt ein weiteres Byte ab", async () => {
     const source = await saveFolder(
       "Größentest",
@@ -325,3 +351,26 @@ describe("Anki-Pakete", () => {
     collection.close();
   });
 });
+
+it.skipIf(!process.env.ANKI_IMPORT_TEST_FILE)(
+  "importiert das bereitgestellte Ankiphil-Paket vollständig",
+  async () => {
+    const file = new Blob([await readFile(process.env.ANKI_IMPORT_TEST_FILE!)]);
+    const prepared = await prepareAnkiImport(file);
+    expect(prepared.data.cards).toHaveLength(6984);
+    expect(
+      prepared.data.cards.every((c) => !/{{c\d+::/.test(c.front + c.back)),
+    ).toBe(true);
+    expect(
+      prepared.data.cards.filter((c) => c.front.includes("[…]")).length,
+    ).toBeGreaterThan(4000);
+    expect(prepared.media.length).toBeGreaterThan(600);
+    expect(
+      prepared.warnings?.some((warning) => warning.includes("Ankiphil")),
+    ).toBe(true);
+    console.info(
+      `Ankiphil: ${prepared.data.folders.length} Ordner, ${prepared.data.cards.length} Karten, ${prepared.media.length} Bilder`,
+    );
+  },
+  60000,
+);

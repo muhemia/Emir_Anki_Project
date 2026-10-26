@@ -320,6 +320,9 @@ export function BackupDialog({
                     {prepared.data.cards.length} Karten ·{" "}
                     {prepared.data.media.length} Bilder
                   </p>
+                  {prepared.warnings?.map((warning) => (
+                    <p key={warning}>{warning}</p>
+                  ))}
                   {prepared.data.folders.length === 0 && (
                     <p>
                       Direkt zu „{folderName}“ hinzufügen – ohne neuen Ordner.
@@ -334,9 +337,9 @@ export function BackupDialog({
               </div>
             )}
             <p className="small muted">
-              Anki-Import unterstützt einfache Vorder-/Rückseitenkarten mit
-              JPG-, PNG- oder WebP-Bildern. Andere Anki-Kartentypen werden
-              abgewiesen.
+              Anki-Import unterstützt Vorder-/Rückseitenkarten, Lückentexte und
+              Ankiphil-Cloze-/Terminologiekarten mit JPG-, PNG- oder
+              WebP-Bildern. Lücken werden zu einzelnen Frage-/Antwortkarten.
             </p>
             <button
               className="button primary full"

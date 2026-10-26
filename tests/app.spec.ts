@@ -1004,3 +1004,37 @@ test("nur direkte Karten exportieren und ohne neuen Ordner ins Ziel importieren"
   await root(page);
   await expect(page.locator(".folder-tree > .folder-card")).toHaveCount(2);
 });
+
+test("Importierte Lückentexte verbergen Antworten bis zum Aufdecken", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Neuer Ordner", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Ordner importieren", exact: true })
+    .click();
+  await page
+    .getByLabel("Sicherungsdatei auswählen", { exact: true })
+    .setInputFiles(path.resolve("tests/fixtures/cloze.apkg"));
+  await expect(page.locator(".import-summary")).toContainText("2 Karten");
+  await expect(page.locator(".import-summary")).toContainText(
+    "Lückentexte werden als einzelne",
+  );
+  await page.getByRole("button", { name: "Zur Sammlung hinzufügen" }).click();
+  await openFolder(page, "Lückentext-Test");
+  await page.getByRole("button", { name: /Lernen starten/ }).click();
+  await expect(page.locator(".study-question")).toContainText("pumpt");
+  const question = await page.locator(".study-question").innerText();
+  const hidden = question.includes("[Organ]") ? "Herz" : "Blut";
+  await expect(page.locator(".study-question")).not.toContainText(hidden);
+  await expect(page.locator(".study-answer")).toHaveCount(0);
+  if (hidden === "Herz")
+    await expect(page.locator(".study-question img")).toHaveCount(0);
+  await page.getByRole("button", { name: /Antwort aufdecken/ }).click();
+  await expect(page.locator(".study-answer")).toContainText(
+    "Das Herz pumpt Blut.",
+  );
+  await expect(page.locator(".study-answer")).toContainText(
+    "Zusatzwissen zur Karte.",
+  );
+  await expect(page.locator(".study-answer img")).toHaveCount(1);
+});

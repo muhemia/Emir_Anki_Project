@@ -1,3 +1,4 @@
+import { clozeOrAnkiphilSides, type AnkiModel } from "./anki-cloze";
 import JSZip from "jszip";
 import { Decompress } from "fzstd";
 import initSqlJs from "sql.js";
@@ -478,11 +479,6 @@ function protoText(value: number | Uint8Array | undefined) {
   return value instanceof Uint8Array ? textDecoder.decode(value) : "";
 }
 
-type AnkiModel = {
-  type?: number;
-  flds?: { name: string }[];
-  tmpls?: { qfmt: string; afmt: string }[];
-};
 function definitions(collection: import("sql.js").Database, modern: boolean) {
   if (!modern) {
     const header = rows(
@@ -514,9 +510,13 @@ function definitions(collection: import("sql.js").Database, modern: boolean) {
   for (const row of rows(collection, "SELECT id, name FROM decks"))
     decks[String(row.id)] = { name: String(row.name).replace(/\x1f/g, "::") };
   const models: Record<string, AnkiModel> = {};
-  for (const row of rows(collection, "SELECT id, config FROM notetypes")) {
+  for (const row of rows(
+    collection,
+    "SELECT id, name, config FROM notetypes",
+  )) {
     const config = protobufFields(row.config as Uint8Array);
     models[String(row.id)] = {
+      name: String(row.name),
       type: Number(config.get(1)?.[0] ?? 0),
       flds: [],
       tmpls: [],
@@ -603,6 +603,7 @@ function templateFields(template: { qfmt: string; afmt: string }) {
 }
 
 export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
+  const warnings = new Set<string>();
   if (file.size > 200 * MB)
     throw new Error("Bitte wähle ein Anki-Paket mit höchstens 200 MB.");
   let zip: JSZip;
@@ -704,23 +705,55 @@ export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
         parent = folder;
       }
       const model = modelDefs[String(source.mid)];
-      if (!model || model.type !== 0 || !model.flds || !model.tmpls)
-        throw new Error(
-          "Das Anki-Paket enthält einen Kartentyp, den diese App noch nicht darstellen kann (z. B. Lückentext).",
-        );
-      const template = model.tmpls[Number(source.ord)];
-      if (!template) throw new Error("Eine Anki-Kartenvorlage fehlt.");
-      const templateNames = templateFields(template);
+      if (
+        !model ||
+        ![0, 1].includes(model.type ?? -1) ||
+        !model.flds ||
+        !model.tmpls
+      )
+        throw new Error("Dieser Anki-Kartentyp wird noch nicht unterstützt.");
       const fields = String(source.flds).split("\x1f");
-      const frontIndex = model.flds.findIndex(
-        (field) => field?.name === templateNames.front,
-      );
-      const backIndex = model.flds.findIndex(
-        (field) => field?.name === templateNames.back,
-      );
-      if (frontIndex < 0 || backIndex < 0)
-        throw new Error("Die Felder einer Anki-Kartenvorlage fehlen.");
+      const rendered = clozeOrAnkiphilSides(model, fields, Number(source.ord));
+      let frontHtml: string, backHtml: string;
+      if (rendered) {
+        frontHtml = rendered.front;
+        backHtml = rendered.back;
+        if (model.type === 1)
+          warnings.add(
+            "Lückentexte werden als einzelne Frage-/Antwortkarten übernommen. Beim Aufdecken erscheint der vollständige Text; der Export verwendet Basic-Karten.",
+          );
+        if (rendered.simplified)
+          warnings.add(
+            "Ankiphil: Lerntexte, Zusatzinfos und Bilder werden übernommen. Eingabefelder, Layout und Add-on-Skripte werden durch die normale Kartenansicht ersetzt.",
+          );
+      } else {
+        const template = model.tmpls[Number(source.ord)];
+        if (!template) throw new Error("Eine Anki-Kartenvorlage fehlt.");
+        const templateNames = templateFields(template);
+        const frontIndex = model.flds.findIndex(
+          (field) => field?.name === templateNames.front,
+        );
+        const backIndex = model.flds.findIndex(
+          (field) => field?.name === templateNames.back,
+        );
+        if (frontIndex < 0 || backIndex < 0)
+          throw new Error("Die Felder einer Anki-Kartenvorlage fehlen.");
+        frontHtml = fields[frontIndex] ?? "";
+        backHtml = fields[backIndex] ?? "";
+      }
       const parseSide = async (html: string) => {
+        if (rendered?.simplified) {
+          html = html.replace(
+            /<iframe\b[^>]*>[\s\S]*?<\/iframe\s*>/gi,
+            (tag) => {
+              warnings.add(
+                "Eingebettete externe Inhalte werden als Texthinweis mit Adresse übernommen und nicht geladen.",
+              );
+              const url = tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1] ?? "";
+              return `<br>${escapeHtml(`Externer Inhalt: ${/^https?:\/\//i.test(url) ? url : "nicht unterstützt"}`)}<br>`;
+            },
+          );
+        }
         if (/\[sound:|<\s*(?:audio|video|script|iframe)\b/i.test(html))
           throw new Error(
             "Audio, Video und aktive Inhalte aus Anki können noch nicht importiert werden.",
@@ -792,8 +825,8 @@ export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
           throw new Error("Eine Anki-Kartenseite ist leer oder zu groß.");
         return { text, imageIds };
       };
-      const front = await parseSide(fields[frontIndex] ?? "");
-      const back = await parseSide(fields[backIndex] ?? "");
+      const front = await parseSide(frontHtml);
+      const back = await parseSide(backHtml);
       cards.push({
         id: crypto.randomUUID(),
         folderId: parent?.id ?? null,
@@ -823,6 +856,7 @@ export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
         reviews: [],
       },
       media,
+      warnings: [...warnings],
     };
   } catch (error) {
     if (error instanceof Error) throw error;

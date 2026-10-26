@@ -91,7 +91,11 @@ const packageSchema = z.object({
     .max(500000),
 });
 export type PackageData = z.infer<typeof packageSchema>;
-export type PreparedImport = { data: PackageData; media: Media[] };
+export type PreparedImport = {
+  data: PackageData;
+  media: Media[];
+  warnings?: string[];
+};
 
 export async function exportPackage(
   kind: "backup" | "share",
