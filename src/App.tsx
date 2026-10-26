@@ -736,7 +736,12 @@ export default function App({
             <p>{dialog.card.front}</p>
             <div className="study-media">
               {dialog.card.frontImages.map((m) => (
-                <CardImage key={m} mediaId={m} zoom />
+                <CardImage
+                  key={m}
+                  mediaId={m}
+                  zoom
+                  occlusion={dialog.card.occlusion}
+                />
               ))}
             </div>
             <hr />
@@ -744,7 +749,13 @@ export default function App({
             <p>{dialog.card.back}</p>
             <div className="study-media">
               {dialog.card.backImages.map((m) => (
-                <CardImage key={m} mediaId={m} zoom />
+                <CardImage
+                  key={m}
+                  mediaId={m}
+                  zoom
+                  occlusion={dialog.card.occlusion}
+                  answer
+                />
               ))}
             </div>
             <div className="dialog-actions">

@@ -225,6 +225,7 @@ export function CardEditor({
           back: back.trim(),
           frontImages,
           backImages,
+          ...(current?.occlusion ? { occlusion: current.occlusion } : {}),
           schedule: current?.schedule || newSchedule(),
           createdAt: card?.createdAt || Date.now(),
           updatedAt: Date.now(),
@@ -293,6 +294,8 @@ export function CardEditor({
                     <div className="image-tile" key={mediaId}>
                       <CardImage
                         mediaId={mediaId}
+                        occlusion={card?.occlusion}
+                        answer={side === "back"}
                         data={pending.find((m) => m.id === mediaId)?.data}
                         type={pending.find((m) => m.id === mediaId)?.type}
                       />
@@ -300,6 +303,12 @@ export function CardEditor({
                         className="image-remove"
                         type="button"
                         aria-label="Bild entfernen"
+                        disabled={card?.occlusion?.imageId === mediaId}
+                        title={
+                          card?.occlusion?.imageId === mediaId
+                            ? "Dieses Bild gehört zur Bildverdeckung."
+                            : undefined
+                        }
                         onClick={() =>
                           (side === "front" ? setFrontImages : setBackImages)(
                             (prev) => prev.filter((i) => i !== mediaId),

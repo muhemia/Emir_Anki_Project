@@ -236,7 +236,12 @@ export function Study({
               {active.front && <p>{active.front}</p>}
               <div className="study-media">
                 {active.frontImages.map((m) => (
-                  <CardImage key={m} mediaId={m} zoom />
+                  <CardImage
+                    key={m}
+                    mediaId={m}
+                    zoom
+                    occlusion={active.occlusion}
+                  />
                 ))}
               </div>
             </div>
@@ -246,7 +251,13 @@ export function Study({
                 {active.back && <p>{active.back}</p>}
                 <div className="study-media">
                   {active.backImages.map((m) => (
-                    <CardImage key={m} mediaId={m} zoom />
+                    <CardImage
+                      key={m}
+                      mediaId={m}
+                      zoom
+                      occlusion={active.occlusion}
+                      answer
+                    />
                   ))}
                 </div>
               </div>

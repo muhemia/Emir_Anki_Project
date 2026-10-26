@@ -1038,3 +1038,53 @@ test("Importierte Lückentexte verbergen Antworten bis zum Aufdecken", async ({
   );
   await expect(page.locator(".study-answer img")).toHaveCount(1);
 });
+
+test("Bildverdeckungen bleiben beim Vergrößern, Aufdecken und Neuladen korrekt", async ({
+  page,
+}, testInfo) => {
+  await page.getByRole("button", { name: "Neuer Ordner", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Ordner importieren", exact: true })
+    .click();
+  await page
+    .getByLabel("Sicherungsdatei auswählen", { exact: true })
+    .setInputFiles(path.resolve("tests/fixtures/occlusion.apkg"));
+  await expect(page.locator(".import-summary")).toContainText("2 Karten");
+  await page.getByRole("button", { name: "Zur Sammlung hinzufügen" }).click();
+  await openFolder(page, "Bildverdeckung-Test");
+  await page.getByRole("button", { name: /Lernen starten/ }).click();
+  const image = page.locator(".study-question .occlusion-image");
+  await expect(image.locator("img")).toBeVisible();
+  const active = image.locator('[data-active="true"]');
+  await expect(active).toHaveCSS("background-color", "rgb(239, 140, 140)");
+  await page.getByRole("button", { name: "Bild vergrößern" }).click();
+  const alignment = await image.evaluate((el) => {
+    const img = el.querySelector("img")!.getBoundingClientRect();
+    const mask = el
+      .querySelector('[data-active="true"]')!
+      .getBoundingClientRect();
+    return { ratio: img.width / img.height, maskRatio: mask.width / img.width };
+  });
+  expect(alignment.ratio).toBeCloseTo(2, 1);
+  expect(alignment.maskRatio).toBeCloseTo(0.3, 2);
+  await expect(active).toHaveCSS("background-color", "rgb(239, 140, 140)");
+  await page.screenshot({
+    path: testInfo.outputPath("occlusion-question.png"),
+  });
+  await page.getByRole("button", { name: /Antwort aufdecken/ }).click();
+  await expect(page.locator('.study-answer [data-active="true"]')).toHaveCSS(
+    "background-color",
+    "rgba(0, 0, 0, 0)",
+  );
+  await expect(page.locator('.study-answer [data-active="false"]')).toHaveCSS(
+    "background-color",
+    "rgb(255, 227, 155)",
+  );
+  await page.reload();
+  await openFolder(page, "Bildverdeckung-Test");
+  await page.getByRole("button", { name: /Lernen starten/ }).click();
+  await expect(page.locator('.study-question [data-active="true"]')).toHaveCSS(
+    "background-color",
+    "rgb(239, 140, 140)",
+  );
+});

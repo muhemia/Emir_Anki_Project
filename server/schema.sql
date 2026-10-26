@@ -124,3 +124,5 @@ CREATE TABLE IF NOT EXISTS auth_limits (
   window_started timestamptz NOT NULL DEFAULT now(),
   attempts integer NOT NULL DEFAULT 1
 );
+
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS occlusion jsonb;

@@ -338,8 +338,9 @@ export function BackupDialog({
             )}
             <p className="small muted">
               Anki-Import unterstützt Vorder-/Rückseitenkarten, Lückentexte und
-              Ankiphil-Cloze-/Terminologiekarten mit JPG-, PNG- oder
-              WebP-Bildern. Lücken werden zu einzelnen Frage-/Antwortkarten.
+              Ankiphil-Karten einschließlich Muskeltrainer und Bildverdeckungen
+              mit JPG-, PNG- oder WebP-Bildern. Lücken werden zu einzelnen
+              Frage-/Antwortkarten.
             </p>
             <button
               className="button primary full"

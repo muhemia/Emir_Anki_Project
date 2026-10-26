@@ -1,3 +1,9 @@
+import {
+  occlusionSchema,
+  visibleMasks,
+  maskStyle,
+  type Occlusion,
+} from "./occlusion";
 import { clozeOrAnkiphilSides, type AnkiModel } from "./anki-cloze";
 import JSZip from "jszip";
 import { Decompress } from "fzstd";
@@ -68,14 +74,28 @@ function imageName(media: Media) {
   return `emir_${media.id.replace(/[^a-zA-Z0-9_-]/g, "_")}.${ext}`;
 }
 
-function ankiField(text: string, ids: string[], mediaById: Map<string, Media>) {
+function ankiField(
+  text: string,
+  ids: string[],
+  mediaById: Map<string, Media>,
+  occlusion?: Occlusion,
+  answer = false,
+) {
   const images = ids.map((id) => {
     const media = mediaById.get(id);
     if (!media)
       throw new Error(
         "Ein Bild fehlt. Bitte prüfe deine Karten vor dem Export.",
       );
-    return `<img src="${imageName(media)}">`;
+    const image = `<img src="${imageName(media)}" style="display:block;width:100%">`;
+    if (occlusion?.imageId !== id) return `<img src="${imageName(media)}">`;
+    const masks = visibleMasks(occlusion)
+      .map((shape) => {
+        const style = maskStyle(shape, occlusion.active, answer);
+        return `<span style="position:absolute;left:${style.left};top:${style.top};width:${style.width};height:${style.height};box-sizing:border-box;background:${style.background};border:${style.border}"></span>`;
+      })
+      .join("");
+    return `<span data-emir-occlusion="${encodeURIComponent(JSON.stringify(occlusion))}" style="display:inline-block;position:relative;max-width:100%">${image}${masks}</span>`;
   });
   return [escapeHtml(text), ...images].filter(Boolean).join("<br>");
 }
@@ -301,9 +321,15 @@ export async function exportAnkiPackage(
         schedVer: 2,
         // Anki still requires a deck. Emir Cards uses this marker to add the
         // cards to the chosen destination without recreating a source folder.
-        ...(scope === "direct"
-          ? { emirCards: { version: 1, mode: "direct-cards" } }
-          : {}),
+        emirCards: {
+          version: 1,
+          ...(scope === "direct" ? { mode: "direct-cards" } : {}),
+          occlusions: Object.fromEntries(
+            snapshot.cards
+              .filter((c) => c.occlusion)
+              .map((c) => [c.id, c.occlusion]),
+          ),
+        },
       }),
       JSON.stringify({ [String(MODEL_ID)]: model(now, rootId) }),
       JSON.stringify(decks),
@@ -315,8 +341,19 @@ export async function exportAnkiPackage(
       const noteId = numericId("note", card.id, usedIds);
       const ankiCardId = numericId("card", card.id, usedIds);
       cardIdBySource.set(card.id, ankiCardId);
-      const front = ankiField(card.front, card.frontImages, mediaById);
-      const back = ankiField(card.back, card.backImages, mediaById);
+      const front = ankiField(
+        card.front,
+        card.frontImages,
+        mediaById,
+        card.occlusion,
+      );
+      const back = ankiField(
+        card.back,
+        card.backImages,
+        mediaById,
+        card.occlusion,
+        true,
+      );
       const fields = `${front}\x1f${back}`;
       const digest = await crypto.subtle.digest(
         "SHA-1",
@@ -718,7 +755,7 @@ export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
       if (rendered) {
         frontHtml = rendered.front;
         backHtml = rendered.back;
-        if (model.type === 1)
+        if (model.type === 1 && !rendered.occlusion)
           warnings.add(
             "Lückentexte werden als einzelne Frage-/Antwortkarten übernommen. Beim Aufdecken erscheint der vollständige Text; der Export verwendet Basic-Karten.",
           );
@@ -743,6 +780,13 @@ export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
       }
       const parseSide = async (html: string) => {
         if (rendered?.simplified) {
+          html = html.replace(
+            /<img\b[^>]*\bsrc\s*=\s*["'](_amboss-(?:hammer|logo)\.svg)["'][^>]*>/gi,
+            (_, name: string) => {
+              warnings.add("Ankiphil-Symbole werden als Text übernommen.");
+              return name.includes("hammer") ? "[Hammer]" : "AMBOSS";
+            },
+          );
           html = html.replace(
             /<iframe\b[^>]*>[\s\S]*?<\/iframe\s*>/gi,
             (tag) => {
@@ -827,9 +871,39 @@ export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
       };
       const front = await parseSide(frontHtml);
       const back = await parseSide(backHtml);
+      const inlineOcclusion = frontHtml.match(
+        /data-emir-occlusion="([^"]+)"/,
+      )?.[1];
+      const exportedOcclusion =
+        config?.emirCards?.occlusions?.[String(source.guid)] ??
+        (inlineOcclusion
+          ? JSON.parse(decodeURIComponent(inlineOcclusion))
+          : undefined);
+      if (rendered?.occlusion && front.imageIds.length !== 1)
+        throw new Error(
+          "Eine Bildverdeckung muss genau ein Hauptbild enthalten.",
+        );
+      const occlusion = rendered?.occlusion
+        ? occlusionSchema.parse({
+            ...rendered.occlusion,
+            imageId: front.imageIds[0],
+          })
+        : exportedOcclusion
+          ? occlusionSchema.parse({
+              ...exportedOcclusion,
+              imageId: front.imageIds[0],
+            })
+          : undefined;
+      if (
+        occlusion &&
+        (!front.imageIds.includes(occlusion.imageId) ||
+          !back.imageIds.includes(occlusion.imageId))
+      )
+        throw new Error("Das Bild der Verdeckung fehlt auf einer Kartenseite.");
       cards.push({
         id: crypto.randomUUID(),
         folderId: parent?.id ?? null,
+        ...(occlusion ? { occlusion } : {}),
         front: front.text,
         back: back.text,
         frontImages: front.imageIds,

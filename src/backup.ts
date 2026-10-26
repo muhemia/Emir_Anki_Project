@@ -1,3 +1,4 @@
+import { occlusionSchema } from "./occlusion";
 import JSZip from "jszip";
 import { z } from "zod";
 import { db } from "./db";
@@ -66,6 +67,7 @@ const packageSchema = z.object({
       createdAt: finite,
       updatedAt: finite,
       schedule: scheduleSchema.optional(),
+      occlusion: occlusionSchema.optional(),
     }),
   ),
   media: z
@@ -289,6 +291,12 @@ export async function prepareImport(file: Blob): Promise<PreparedImport> {
       throw new Error("Eine Karte hat eine leere Vorder- oder Rückseite.");
     if ([...card.frontImages, ...card.backImages].some((m) => !mediaSet.has(m)))
       throw new Error("Ein Bildverweis ist ungültig.");
+    if (
+      card.occlusion &&
+      (!card.frontImages.includes(card.occlusion.imageId) ||
+        !card.backImages.includes(card.occlusion.imageId))
+    )
+      throw new Error("Das Bild der Verdeckung fehlt auf einer Kartenseite.");
     if (data.kind === "backup" && !card.schedule)
       throw new Error("Ein Lernstand fehlt in der Sicherung.");
   }
@@ -372,6 +380,14 @@ export async function commitImport(
         folderId: c.folderId === null ? target : folderIds.get(c.folderId)!,
         frontImages: c.frontImages.map((m) => mediaIds.get(m)!),
         backImages: c.backImages.map((m) => mediaIds.get(m)!),
+        ...(c.occlusion
+          ? {
+              occlusion: {
+                ...c.occlusion,
+                imageId: mediaIds.get(c.occlusion.imageId)!,
+              },
+            }
+          : {}),
         schedule:
           data.kind === "backup" ? hydrateSchedule(c.schedule!) : newSchedule(),
       }));

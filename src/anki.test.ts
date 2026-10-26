@@ -6,7 +6,7 @@ import { readFile } from "node:fs/promises";
 import { CardsDatabase } from "./db";
 import { id, newSchedule, reviewCard, saveFolder } from "./domain";
 import { exportAnkiPackage, prepareAnkiImport } from "./anki";
-import { commitImport } from "./backup";
+import { commitImport, exportPackage, prepareImport } from "./backup";
 import type { Flashcard } from "./types";
 
 const database = new CardsDatabase("test-anki");
@@ -29,6 +29,56 @@ beforeEach(async () => {
 afterAll(() => database.delete());
 
 describe("Anki-Pakete", () => {
+  it("erhält Bildverdeckungen beim Import, Export und Backup mit neuen Bild-IDs", async () => {
+    const prepared = await prepareAnkiImport(
+      new Blob([await readFile("tests/fixtures/occlusion.apkg")]),
+    );
+    expect(prepared.data.cards).toHaveLength(2);
+    expect(prepared.media).toHaveLength(1);
+    await commitImport(prepared, null, database);
+    const exported = await exportAnkiPackage(null, false, database);
+    const zip = await JSZip.loadAsync(await exported.arrayBuffer());
+    const Sql = await initSqlJs({
+      wasmBinary: Uint8Array.from(
+        await readFile("node_modules/sql.js/dist/sql-wasm.wasm"),
+      ).buffer,
+    });
+    const collection = new Sql.Database(
+      await zip.file("collection.anki2")!.async("uint8array"),
+    );
+    collection.run("UPDATE col SET conf='{}'");
+    zip.file("collection.anki2", collection.export());
+    collection.close();
+    const withoutConfig = await prepareAnkiImport(
+      await zip.generateAsync({ type: "blob" }),
+    );
+    expect(
+      withoutConfig.data.cards.every((c) => c.occlusion?.shapes.length === 2),
+    ).toBe(true);
+    const saved = await database.cards.toArray();
+    expect(
+      saved.every(
+        (c) =>
+          c.occlusion?.imageId === c.frontImages[0] &&
+          c.backImages.includes(c.occlusion.imageId),
+      ),
+    ).toBe(true);
+    for (const imported of [
+      await prepareAnkiImport(await exportAnkiPackage(null, false, database)),
+      await prepareImport(await exportPackage("backup", null, database)),
+    ]) {
+      expect(
+        imported.data.cards.map((c) => c.occlusion?.active).sort(),
+      ).toEqual([1, 2]);
+      expect(
+        imported.data.cards.every(
+          (c) =>
+            c.occlusion?.shapes.length === 2 &&
+            c.occlusion.imageId === c.frontImages[0],
+        ),
+      ).toBe(true);
+    }
+  });
   it("importiert Lücken als getrennte Karten, versteckt Bilder und erhält Zusatztexte beim Export", async () => {
     const prepared = await prepareAnkiImport(
       new Blob([await readFile("tests/fixtures/cloze.apkg")]),
@@ -371,6 +421,39 @@ it.skipIf(!process.env.ANKI_IMPORT_TEST_FILE)(
     console.info(
       `Ankiphil: ${prepared.data.folders.length} Ordner, ${prepared.data.cards.length} Karten, ${prepared.media.length} Bilder`,
     );
+  },
+  60000,
+);
+
+it.skipIf(!process.env.ANKI_ANATOMY_TEST_FILE)(
+  "importiert alle Anatomiekarten einschließlich Muskeltrainer und Bildverdeckungen",
+  async () => {
+    const prepared = await prepareAnkiImport(
+      new Blob([await readFile(process.env.ANKI_ANATOMY_TEST_FILE!)]),
+    );
+    expect(prepared.data.cards).toHaveLength(4907);
+    expect(prepared.data.cards.filter((c) => c.occlusion)).toHaveLength(1419);
+    expect(
+      prepared.data.cards.filter((c) =>
+        /(?:Ursprung|Ansatz|Funktion|Innervation)\?$/.test(c.front),
+      ),
+    ).toHaveLength(696);
+    expect(
+      prepared.data.cards.every(
+        (c) =>
+          !c.front.includes("image-occlusion:") &&
+          !/{{c\d+::/.test(c.front + c.back),
+      ),
+    ).toBe(true);
+    expect(
+      prepared.data.cards
+        .filter((c) => c.occlusion)
+        .every(
+          (c) =>
+            c.frontImages.includes(c.occlusion!.imageId) &&
+            c.backImages.includes(c.occlusion!.imageId),
+        ),
+    ).toBe(true);
   },
   60000,
 );

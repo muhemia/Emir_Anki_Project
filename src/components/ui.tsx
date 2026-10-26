@@ -1,3 +1,4 @@
+import { visibleMasks, maskStyle, type Occlusion } from "../occlusion";
 import {
   useEffect,
   useId,
@@ -71,12 +72,16 @@ export function CardImage({
   type,
   name,
   zoom = false,
+  occlusion,
+  answer = false,
 }: {
   mediaId: string;
   data?: ArrayBuffer;
   type?: string;
   name?: string;
   zoom?: boolean;
+  occlusion?: Occlusion;
+  answer?: boolean;
 }) {
   const media = useLiveQuery(
     () => (data ? undefined : db.media.get(mediaId)),
@@ -96,9 +101,34 @@ export function CardImage({
         <ImageOff size={20} /> Bild wird geladen
       </span>
     );
-  const image = (
-    <img src={url} alt={name || media?.name || "Kartenbild"} loading="lazy" />
+  const baseImage = (
+    <img
+      src={url}
+      alt={
+        occlusion
+          ? "Bild mit verdeckten Beschriftungen"
+          : name || media?.name || "Kartenbild"
+      }
+      loading="lazy"
+    />
   );
+  const image =
+    occlusion?.imageId === mediaId ? (
+      <span className="occlusion-image" data-answer={answer}>
+        {baseImage}
+        <span className="occlusion-masks" aria-hidden="true">
+          {visibleMasks(occlusion).map((shape, index) => (
+            <span
+              key={index}
+              data-active={shape.group === occlusion.active}
+              style={maskStyle(shape, occlusion.active, answer)}
+            />
+          ))}
+        </span>
+      </span>
+    ) : (
+      baseImage
+    );
   return zoom ? (
     <button
       className={`study-image ${enlarged ? "enlarged" : ""}`}

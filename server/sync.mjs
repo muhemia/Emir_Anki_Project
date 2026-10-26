@@ -18,6 +18,7 @@ const fields = {
     frontImages: "front_images",
     backImages: "back_images",
     schedule: "schedule",
+    occlusion: "occlusion",
     createdAt: "created_at",
     updatedAt: "updated_at",
   },
@@ -33,7 +34,8 @@ function wire(kind, row) {
   if (!row) return null;
   const result = {};
   for (const [key, column] of Object.entries(fields[kind])) {
-    if (key === "sortOrder" && row[column] === null) continue;
+    if (["sortOrder", "occlusion"].includes(key) && row[column] == null)
+      continue;
     result[key] =
       key === "data"
         ? row[column].toString("base64")
@@ -289,7 +291,7 @@ export function registerSync(app, pool, requireUser) {
             const values = entries.map(([key]) =>
               key === "data"
                 ? Buffer.from(c.value.data, "base64")
-                : ["schedule", "log", "before"].includes(key)
+                : ["schedule", "log", "before", "occlusion"].includes(key)
                   ? JSON.stringify(c.value[key])
                   : (c.value[key] ?? null),
             );

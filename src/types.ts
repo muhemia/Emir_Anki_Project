@@ -1,3 +1,4 @@
+import type { Occlusion } from "./occlusion";
 import type { Card, ReviewLog } from "ts-fsrs";
 export interface Folder {
   id: string;
@@ -14,6 +15,7 @@ export interface Flashcard {
   back: string;
   frontImages: string[];
   backImages: string[];
+  occlusion?: Occlusion;
   schedule: Card;
   createdAt: number;
   updatedAt: number;

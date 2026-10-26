@@ -31,6 +31,28 @@ const log = z
     review: date,
   })
   .strict();
+const coordinate = z.number().finite().min(-1).max(2);
+const occlusion = z
+  .object({
+    imageId: uid,
+    active: z.number().int().positive(),
+    shapes: z
+      .array(
+        z
+          .object({
+            group: z.number().int().nonnegative(),
+            left: coordinate,
+            top: coordinate,
+            width: z.number().finite().positive().max(2),
+            height: z.number().finite().positive().max(2),
+            hideOthers: z.boolean(),
+          })
+          .strict(),
+      )
+      .min(1),
+  })
+  .strict()
+  .refine((v) => v.shapes.some((s) => s.group === v.active));
 export const schemas = {
   folders: z
     .object({
@@ -51,6 +73,7 @@ export const schemas = {
       frontImages: z.array(uid).max(20),
       backImages: z.array(uid).max(20),
       schedule,
+      occlusion: occlusion.optional(),
       createdAt: time,
       updatedAt: time,
     })
@@ -58,7 +81,10 @@ export const schemas = {
     .refine(
       (c) =>
         (c.front.trim() || c.frontImages.length) &&
-        (c.back.trim() || c.backImages.length),
+        (c.back.trim() || c.backImages.length) &&
+        (!c.occlusion ||
+          (c.frontImages.includes(c.occlusion.imageId) &&
+            c.backImages.includes(c.occlusion.imageId))),
     ),
   media: z
     .object({

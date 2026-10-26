@@ -410,3 +410,50 @@ test("Synchronisiert große und tiefe Sammlungen ohne Anzahl- oder Tiefenlimit",
     "1502",
   );
 });
+
+test("Bildverdeckungen bleiben beim Synchronisieren erhalten und ungültige Bildverweise werden abgewiesen", async () => {
+  const media = {
+    id: randomUUID(),
+    name: "diagram.png",
+    type: "image/png",
+    data: (await readFile("public/icon-192.png")).toString("base64"),
+  };
+  const c = {
+    ...card(null),
+    frontImages: [media.id],
+    backImages: [media.id],
+    occlusion: {
+      imageId: media.id,
+      active: 1,
+      shapes: [
+        {
+          group: 1,
+          left: 0.1,
+          top: 0.2,
+          width: 0.3,
+          height: 0.2,
+          hideOthers: true,
+        },
+      ],
+    },
+  };
+  const saved = await sync([change("media", media), change("cards", c)]);
+  assert.deepEqual(
+    saved.changes.find((v) => v.id === c.id).value.occlusion,
+    c.occlusion,
+  );
+  const invalid = {
+    ...c,
+    id: randomUUID(),
+    occlusion: { ...c.occlusion, imageId: randomUUID() },
+  };
+  assert.equal(
+    (
+      await request(
+        "/api/sync",
+        batch([change("cards", invalid)], saved.cursor),
+      )
+    ).status,
+    400,
+  );
+});

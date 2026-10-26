@@ -1,3 +1,4 @@
+import { parseOcclusion, type Occlusion } from "./occlusion";
 export type AnkiModel = {
   name?: string;
   type?: number;
@@ -56,7 +57,14 @@ export function clozeOrAnkiphilSides(
   model: AnkiModel,
   values: string[],
   ordinal: number,
-): { front: string; back: string; simplified: boolean } | undefined {
+):
+  | {
+      front: string;
+      back: string;
+      simplified: boolean;
+      occlusion?: Omit<Occlusion, "imageId">;
+    }
+  | undefined {
   const fields = new Map(
     model.flds?.map((field, i) => [field.name, values[i] ?? ""]),
   );
@@ -66,9 +74,12 @@ export function clozeOrAnkiphilSides(
   };
   const ankiphil =
     model.name === "Ankiphil - Cloze" ||
-    model.name === "Ankiphil - Terminologie";
+    model.name === "Ankiphil - Terminologie" ||
+    model.name === "Ankiphil - Muskeltrainer" ||
+    model.name === "Ankiphil - iOcclusion";
   if (ankiphil) {
     let front: string, back: string;
+    let occlusion: Omit<Occlusion, "imageId"> | undefined;
     if (model.type === 1 && model.name === "Ankiphil - Cloze") {
       const question = renderCloze(get("Text"), ordinal, false);
       if (!question.found)
@@ -82,6 +93,15 @@ export function clozeOrAnkiphilSides(
     ) {
       front = get(ordinal === 0 ? "Front" : "Back");
       back = get(ordinal === 0 ? "Back" : "Front");
+    } else if (model.type === 0 && model.name === "Ankiphil - Muskeltrainer") {
+      const aspect = ["Ursprung", "Ansatz", "Funktion", "Innervation"][ordinal];
+      if (!aspect) throw new Error("Unbekannte Muskeltrainer-Abfrage.");
+      front = `${fields.get("Titel") || "Muskeltrainer"}<br>${get("Muskel")}<br><br>${aspect}?`;
+      back = `${aspect}:<br>${get(aspect)}`;
+    } else if (model.type === 1 && model.name === "Ankiphil - iOcclusion") {
+      occlusion = parseOcclusion(get("Verdeckung"), ordinal + 1);
+      front = `${fields.get("Titel") || "Bildverdeckung"}<br>Welche Struktur ist rot verdeckt?<br>${get("Image")}`;
+      back = `${fields.get("Titel") || "Bildverdeckung"}<br>Die gesuchte Struktur ist rot umrandet.<br>${get("Image")}`;
     } else
       throw new Error(
         "Diese Ankiphil-Kartenvorlage wird noch nicht unterstützt.",
@@ -100,10 +120,16 @@ export function clozeOrAnkiphilSides(
       "Scrollbares CT",
       "Source",
     ]) {
+      if (occlusion && name === "Image") continue;
       const value = fields.get(name);
       if (value?.trim()) back += `<br><br>${escapeHtml(name)}:<br>${value}`;
     }
-    return { front, back, simplified: true };
+    return {
+      front,
+      back,
+      simplified: true,
+      ...(occlusion ? { occlusion } : {}),
+    };
   }
   if (model.type !== 1) return undefined;
   const template = model.tmpls?.[0];
