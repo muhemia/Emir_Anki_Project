@@ -279,8 +279,8 @@ export async function exportAnkiPackage(
     let mediaSize = 0;
     snapshot.media.forEach((media, index) => {
       mediaSize += media.data.byteLength;
-      if (mediaSize > 100 * MB)
-        throw new Error("Die Bilder überschreiten zusammen 100 MB.");
+      if (mediaSize > 200 * MB)
+        throw new Error("Die Bilder überschreiten zusammen 200 MB.");
       const name = imageName(media);
       mediaMap[String(index)] = name;
       zip.file(String(index), media.data);
@@ -381,8 +381,8 @@ export async function exportAnkiPackage(
       ]);
     }
     const bytes = collection.export();
-    if (bytes.byteLength > 100 * MB)
-      throw new Error("Die Anki-Sammlung überschreitet 100 MB.");
+    if (bytes.byteLength > 200 * MB)
+      throw new Error("Die Anki-Sammlung überschreitet 200 MB.");
     zip.file("collection.anki2", bytes);
     zip.file("media", JSON.stringify(mediaMap));
     const result = await zip.generateAsync({
@@ -390,8 +390,8 @@ export async function exportAnkiPackage(
       compression: "DEFLATE",
       compressionOptions: { level: 3 },
     });
-    if (result.size > 100 * MB)
-      throw new Error("Das Anki-Paket überschreitet 100 MB.");
+    if (result.size > 200 * MB)
+      throw new Error("Das Anki-Paket überschreitet 200 MB.");
     return result;
   } finally {
     collection.close();
@@ -603,8 +603,8 @@ function templateFields(template: { qfmt: string; afmt: string }) {
 }
 
 export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
-  if (file.size > 100 * MB)
-    throw new Error("Bitte wähle ein Anki-Paket unter 100 MB.");
+  if (file.size > 200 * MB)
+    throw new Error("Bitte wähle ein Anki-Paket mit höchstens 200 MB.");
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(await file.arrayBuffer());
@@ -619,9 +619,9 @@ export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
     zip.file("collection.anki21") ??
     zip.file("collection.anki2");
   if (!collectionEntry) throw new Error("Im Paket fehlt die Anki-Sammlung.");
-  const packedCollection = await readLimited(collectionEntry, 100 * MB);
+  const packedCollection = await readLimited(collectionEntry, 200 * MB);
   const collectionBytes = modern
-    ? unpackZstd(packedCollection, 100 * MB)
+    ? unpackZstd(packedCollection, 200 * MB)
     : packedCollection;
   const Sql = await sqlite();
   let collection: import("sql.js").Database;
@@ -643,12 +643,10 @@ export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
       config?.emirCards?.mode === "direct-cards";
     const sourceCards = rows(
       collection,
-      "SELECT c.id AS cid, c.did, c.ord, n.mid, n.flds, n.guid, n.mod FROM cards c JOIN notes n ON n.id = c.nid ORDER BY c.id LIMIT 50001",
+      "SELECT c.id AS cid, c.did, c.ord, n.mid, n.flds, n.guid, n.mod FROM cards c JOIN notes n ON n.id = c.nid ORDER BY c.id",
     );
     if (!sourceCards.length)
       throw new Error("Das Anki-Paket enthält keine Karten.");
-    if (sourceCards.length > 50000)
-      throw new Error("Das Anki-Paket enthält zu viele Karten.");
     const mediaEntry = zip.file("media");
     let mediaIndex: Record<string, string> = {};
     if (mediaEntry) {
@@ -767,7 +765,7 @@ export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
                 `Das Anki-Bild „${name}“ ist ungültig oder zu groß.`,
               );
             totalMediaBytes += bytes.byteLength;
-            if (totalMediaBytes > 100 * MB)
+            if (totalMediaBytes > 200 * MB)
               throw new Error("Die entpackten Bilder sind zusammen zu groß.");
             media = {
               id: crypto.randomUUID(),
@@ -810,8 +808,8 @@ export async function prepareAnkiImport(file: Blob): Promise<PreparedImport> {
             : now,
       });
     }
-    if (folders.length > 10000 || mediaByName.size > 50000)
-      throw new Error("Das Anki-Paket enthält zu viele Ordner oder Bilder.");
+    if (mediaByName.size > 50000)
+      throw new Error("Das Anki-Paket enthält zu viele Bilder.");
     const media = [...mediaByName.values()];
     return {
       data: {

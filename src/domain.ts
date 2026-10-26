@@ -2,7 +2,6 @@ import { createEmptyCard, fsrs, State, type Grade, type Card } from "ts-fsrs";
 import type { Flashcard, Folder } from "./types";
 import { db, type CardsDatabase } from "./db";
 import { persistNative } from "./native-storage";
-import { assertCardCapacity, assertFolderPlacement } from "./limits";
 
 export const scheduler = fsrs({
   request_retention: 0.9,
@@ -92,7 +91,6 @@ export async function saveFolder(
         throw new Error(
           "Ein Ordner kann nicht in sich selbst verschoben werden.",
         );
-      assertFolderPlacement(all, parentId, existingId);
       const folder: Folder = {
         id: existingId || id(),
         name: uniqueName(
@@ -170,8 +168,6 @@ export async function moveCard(
         throw new Error("Der Zielordner wurde entfernt.");
       const card = await database.cards.get(cardId);
       if (!card) throw new Error("Die Karte wurde entfernt.");
-      if (card.folderId !== target)
-        assertCardCapacity(await database.cards.toArray(), target);
       if (
         !(await database.cards.update(cardId, {
           folderId: target,

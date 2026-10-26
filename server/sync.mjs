@@ -106,26 +106,18 @@ async function checkStructure(client, user) {
     ])
   ).rows;
   const map = new Map(folders.map((f) => [f.id, f]));
-  const counts = new Map();
+  const checked = new Set();
   for (const f of folders) {
-    counts.set(f.parent_id, (counts.get(f.parent_id) || 0) + 1);
-    if (counts.get(f.parent_id) > 10)
-      throw new Error("Maximal 10 Ordner pro Ebene.");
     const seen = new Set();
     let at = f.id;
-    while (at !== null) {
+    while (at !== null && !checked.has(at)) {
       if (seen.has(at) || !map.has(at))
         throw new Error("Ungültige Ordnerstruktur.");
       seen.add(at);
-      if (seen.size > 4) throw new Error("Maximal vier Ordnerebenen.");
       at = map.get(at).parent_id;
     }
+    for (const id of seen) checked.add(id);
   }
-  const excess = await client.query(
-    "SELECT folder_id FROM cards WHERE user_id=$1 GROUP BY folder_id HAVING count(*)>1500 LIMIT 1",
-    [user],
-  );
-  if (excess.rowCount) throw new Error("Maximal 1.500 Karten pro Ordner.");
   const missing = await client.query(
     `SELECT c.id FROM cards c CROSS JOIN LATERAL unnest(c.front_images || c.back_images) m(id)
     LEFT JOIN media i ON i.user_id=c.user_id AND i.id=m.id WHERE c.user_id=$1 AND i.id IS NULL LIMIT 1`,
@@ -136,8 +128,8 @@ async function checkStructure(client, user) {
     "SELECT coalesce(sum(octet_length(data)),0) AS bytes FROM media WHERE user_id=$1",
     [user],
   );
-  if (Number(size.rows[0].bytes) > 100 * 1024 * 1024)
-    throw new Error("Maximal 100 MB Bilder pro Sammlung.");
+  if (Number(size.rows[0].bytes) > 200 * 1024 * 1024)
+    throw new Error("Maximal 200 MB Bilder pro Sammlung.");
 }
 export function registerSync(app, pool, requireUser) {
   app.get("/api/sync/status", requireUser, async (req, res) => {
@@ -153,12 +145,10 @@ export function registerSync(app, pool, requireUser) {
     try {
       batch = parseBatch(req.body);
     } catch {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Die Änderungen enthalten ungültige Daten oder überschreiten die Grenzen.",
-        });
+      return res.status(400).json({
+        error:
+          "Die Änderungen enthalten ungültige Daten oder überschreiten die Grenzen.",
+      });
     }
     const client = await pool.connect();
     const user = req.user.id;
@@ -172,12 +162,10 @@ export function registerSync(app, pool, requireUser) {
       ).rows[0];
       if (batch.cursor > Number(lock.data_revision)) {
         await client.query("ROLLBACK");
-        return res
-          .status(409)
-          .json({
-            error:
-              "Der Serverstand ist älter als diese Gerätekopie. Bitte eine Sicherung exportieren und die Wiederherstellung prüfen.",
-          });
+        return res.status(409).json({
+          error:
+            "Der Serverstand ist älter als diese Gerätekopie. Bitte eine Sicherung exportieren und die Wiederherstellung prüfen.",
+        });
       }
       const hash = createHash("sha256")
         .update(JSON.stringify(batch))
@@ -287,12 +275,10 @@ export function registerSync(app, pool, requireUser) {
         }
         if (conflicts.size) {
           await client.query("ROLLBACK");
-          return res
-            .status(409)
-            .json({
-              error: "Änderungen auf mehreren Geräten überschneiden sich.",
-              conflicts: [...conflicts.values()],
-            });
+          return res.status(409).json({
+            error: "Änderungen auf mehreren Geräten überschneiden sich.",
+            conflicts: [...conflicts.values()],
+          });
         }
         for (const kind of ["folders", "media", "cards", "reviews"]) {
           for (const c of batch.changes.filter(
@@ -341,12 +327,10 @@ export function registerSync(app, pool, requireUser) {
     } catch (error) {
       await client.query("ROLLBACK");
       if (["23503", "23514", "22P02"].includes(error.code))
-        res
-          .status(409)
-          .json({
-            error:
-              "Ordner oder Karten wurden inzwischen geändert. Die lokalen Änderungen bleiben erhalten.",
-          });
+        res.status(409).json({
+          error:
+            "Ordner oder Karten wurden inzwischen geändert. Die lokalen Änderungen bleiben erhalten.",
+        });
       else if (!error.code && !error.status)
         res.status(400).json({ error: error.message });
       else throw error;

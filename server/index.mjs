@@ -81,7 +81,7 @@ app.use("/api", (req, _res, next) => {
   next();
 });
 app.use("/api/auth", express.json({ limit: "8kb" }));
-app.use(express.json({ limit: "140mb" }));
+app.use(express.json({ limit: "300mb" }));
 async function throttle(req, res, next) {
   try {
     const registration = req.path.endsWith("/register");
@@ -96,12 +96,10 @@ async function throttle(req, res, next) {
     );
     if (result.rows[0].attempts > limit) {
       res.setHeader("Retry-After", "900");
-      return res
-        .status(429)
-        .json({
-          error:
-            "Zu viele Anmeldeversuche. Bitte in 15 Minuten erneut versuchen.",
-        });
+      return res.status(429).json({
+        error:
+          "Zu viele Anmeldeversuche. Bitte in 15 Minuten erneut versuchen.",
+      });
     }
     next();
   } catch (error) {
@@ -231,12 +229,10 @@ app.post("/api/auth/logout", async (req, res) => {
 registerSync(app, pool, requireUser);
 // Old clients must update instead of replacing an entire collection.
 app.all("/api/data", requireUser, (_req, res) =>
-  res
-    .status(410)
-    .json({
-      error:
-        "Bitte die App neu laden. Diese Version verwendet den neuen Änderungsabgleich.",
-    }),
+  res.status(410).json({
+    error:
+      "Bitte die App neu laden. Diese Version verwendet den neuen Änderungsabgleich.",
+  }),
 );
 
 app.get("/api/health", async (_req, res) => {

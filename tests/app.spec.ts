@@ -679,7 +679,7 @@ test("Ein installiertes Home-Screen-Symbol öffnet auch von der Startadresse die
   ).toHaveCount(0);
 });
 
-test("500 Karten bleiben eingeklappt und im eigenen Bereich bedienbar", async ({
+test("1501 Karten bleiben eingeklappt und im eigenen Bereich bedienbar", async ({
   page,
 }) => {
   const zip = new JSZip();
@@ -700,7 +700,7 @@ test("500 Karten bleiben eingeklappt und im eigenen Bereich bedienbar", async ({
           createdAt: now,
         },
       ],
-      cards: Array.from({ length: 500 }, (_, i) => ({
+      cards: Array.from({ length: 1501 }, (_, i) => ({
         id: `card-${i}`,
         folderId: "large-deck",
         front: `Frage ${String(i + 1).padStart(3, "0")}`,
@@ -722,24 +722,25 @@ test("500 Karten bleiben eingeklappt und im eigenen Bereich bedienbar", async ({
   await page
     .getByLabel("Sicherungsdatei auswählen", { exact: true })
     .setInputFiles({
-      name: "500-karten.zip",
+      name: "1501-karten.zip",
       mimeType: "application/zip",
       buffer,
     });
   await page.getByRole("button", { name: "Zur Sammlung hinzufügen" }).click();
   await openFolder(page, "Großes Fach");
   await createFolder(page, "Sichtbarer Unterordner");
+  await createCard(page, "Zusätzliche Frage", "Zusätzliche Antwort");
   await expect(
     page.getByRole("button", { name: "Ordner Sichtbarer Unterordner öffnen" }),
   ).toBeVisible();
   const toggle = page.locator(".cards-toggle");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await expect(toggle).toContainText("500");
+  await expect(toggle).toContainText("1502");
   await expect(page.locator(".card-row")).toHaveCount(0);
   await toggle.click();
   const list = page.getByRole("region", { name: "Kartenliste", exact: true });
   await expect(list).toBeVisible();
-  await expect(list.locator(".card-row")).toHaveCount(500);
+  await expect(list.locator(".card-row")).toHaveCount(1502);
   const size = await list.evaluate((el) => ({
     height: el.clientHeight,
     content: el.scrollHeight,
@@ -750,11 +751,11 @@ test("500 Karten bleiben eingeklappt und im eigenen Bereich bedienbar", async ({
     el.scrollTop = el.scrollHeight;
   });
   await list.locator(".card-row-content").last().click();
-  await expect(page.getByRole("dialog")).toContainText("Frage 500");
+  await expect(page.getByRole("dialog")).toContainText("Frage 1501");
   await page.getByRole("button", { name: "Fertig", exact: true }).click();
-  await actions(page, "Frage 500", "Bearbeiten");
+  await actions(page, "Frage 1501", "Bearbeiten");
   await expect(page.getByLabel("Deine Frage", { exact: false })).toHaveValue(
-    "Frage 500",
+    "Frage 1501",
   );
   await page.getByRole("button", { name: "Abbrechen", exact: true }).click();
   await toggle.click();
@@ -769,9 +770,9 @@ test("500 Karten bleiben eingeklappt und im eigenen Bereich bedienbar", async ({
   await expect(
     page.getByRole("button", { name: "Neuer Ordner", exact: true }),
   ).toHaveCount(0);
-  await expect(toggle).toContainText("500");
+  await expect(toggle).toContainText("1502");
   await toggle.click();
-  await expect(list.locator(".card-row")).toHaveCount(500);
+  await expect(list.locator(".card-row")).toHaveCount(1502);
 });
 
 test("Unterordner-Import übernimmt das Menü-Ziel statt der geöffneten Sammlung", async ({

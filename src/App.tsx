@@ -43,11 +43,6 @@ import { Study } from "./components/Study";
 import { FolderSort } from "./components/FolderSort";
 import { FolderTreeNode } from "./components/FolderTree";
 import { Modal, CardImage, ErrorMessage, errorText } from "./components/ui";
-import {
-  folderDepth,
-  MAX_CARDS_PER_FOLDER,
-  MAX_FOLDERS_PER_PARENT,
-} from "./limits";
 
 type Dialog =
   | { kind: "folder"; folder?: Folder; parentId?: string; fromTree?: boolean }
@@ -212,8 +207,6 @@ export default function App({
   const visibleFolders = folders
     .filter((f) => f.parentId === currentId)
     .sort(compareFolders);
-  const rootFolderCount = folders.filter((f) => f.parentId === null).length;
-  const childFolderDepth = folder ? folderDepth(folders, currentId) + 1 : 1;
   const crumbs = navigationPath
     .slice(1)
     .map((id) => folders.find((f) => f.id === id))
@@ -344,31 +337,18 @@ export default function App({
               <button
                 className="button primary new-root-folder"
                 onClick={() => open({ kind: "folder" })}
-                disabled={rootFolderCount >= MAX_FOLDERS_PER_PARENT}
-                title="Maximal 10 Hauptordner"
-                aria-label={
-                  rootFolderCount >= MAX_FOLDERS_PER_PARENT
-                    ? "Limit erreicht: 10 Hauptordner"
-                    : undefined
-                }
               >
                 <FolderPlus size={18} />
-                {rootFolderCount >= MAX_FOLDERS_PER_PARENT
-                  ? "10/10 Ordner"
-                  : "Neuer Ordner"}
+                Neuer Ordner
               </button>
             )}
             {folder && (
               <button
                 className="button primary new-folder-card"
                 onClick={() => open({ kind: "card" })}
-                disabled={visibleCards.length >= MAX_CARDS_PER_FOLDER}
-                title="Maximal 1.500 Karten direkt pro Ordner"
               >
                 <Plus size={18} />
-                {visibleCards.length >= MAX_CARDS_PER_FOLDER
-                  ? "1.500/1.500 Karten"
-                  : "Neue Karte"}
+                Neue Karte
               </button>
             )}
           </div>
@@ -427,7 +407,10 @@ export default function App({
             <div className="collection-toolbar">
               <div className="section-title">
                 <h2>Deine Inhalte</h2>
-                <span>{visibleCards.length}/1.500 hier</span>
+                <span>
+                  {visibleCards.length}{" "}
+                  {visibleCards.length === 1 ? "Karte" : "Karten"} hier
+                </span>
               </div>
             </div>
           )}
@@ -453,7 +436,6 @@ export default function App({
                     now={now}
                     expandedIds={expandedFolderIds}
                     showChildren
-                    depth={childFolderDepth}
                     onToggle={toggleFolder}
                     onOpen={navigate}
                     onAdd={(parentId) =>
@@ -598,7 +580,6 @@ export default function App({
                   <button
                     className="button primary"
                     onClick={() => open({ kind: "folder" })}
-                    disabled={rootFolderCount >= MAX_FOLDERS_PER_PARENT}
                   >
                     <FolderPlus size={18} />
                     Ersten Ordner erstellen

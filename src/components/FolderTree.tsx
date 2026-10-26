@@ -10,7 +10,6 @@ import {
 import { compareFolders, isDue, scopedCards } from "../domain";
 import type { Flashcard, Folder } from "../types";
 import { FolderDragHandle, useFolderSort } from "./FolderSort";
-import { MAX_FOLDER_DEPTH, MAX_FOLDERS_PER_PARENT } from "../limits";
 
 type Props = {
   folder: Folder;
@@ -19,7 +18,6 @@ type Props = {
   now: number;
   expandedIds: Set<string>;
   showChildren: boolean;
-  depth: number;
   onToggle: (id: string) => void;
   onOpen: (id: string) => void;
   onAdd: (id: string) => void;
@@ -42,7 +40,6 @@ export function FolderTreeNode(props: Props) {
     now,
     expandedIds,
     showChildren,
-    depth,
     onToggle,
     onOpen,
     onAdd,
@@ -55,7 +52,6 @@ export function FolderTreeNode(props: Props) {
     .filter((item) => item.parentId === folder.id)
     .sort(compareFolders);
   const expanded = showChildren && expandedIds.has(folder.id);
-  const canNest = depth < MAX_FOLDER_DEPTH;
   const canExpand = showChildren && children.length > 0;
   const contents = scopedCards(cards, folders, folder.id);
   const ready = contents.filter((card) => isDue(card, now)).length;
@@ -107,22 +103,14 @@ export function FolderTreeNode(props: Props) {
               <MoreHorizontal size={20} />
             </summary>
             <div className="menu-panel">
-              {canNest && (
-                <button
-                  disabled={children.length >= MAX_FOLDERS_PER_PARENT}
-                  title={
-                    children.length >= MAX_FOLDERS_PER_PARENT
-                      ? "Maximal 10 Unterordner pro Ordner"
-                      : undefined
-                  }
-                  onClick={() => {
-                    closeMenus();
-                    onAdd(folder.id);
-                  }}
-                >
-                  <FolderPlus size={16} /> Unterordner hinzufügen
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  closeMenus();
+                  onAdd(folder.id);
+                }}
+              >
+                <FolderPlus size={16} /> Unterordner hinzufügen
+              </button>
               <button
                 onClick={() => {
                   closeMenus();
@@ -160,12 +148,7 @@ export function FolderTreeNode(props: Props) {
         >
           {expanded &&
             children.map((child) => (
-              <FolderTreeNode
-                key={child.id}
-                {...props}
-                folder={child}
-                depth={depth + 1}
-              />
+              <FolderTreeNode key={child.id} {...props} folder={child} />
             ))}
         </div>
       )}

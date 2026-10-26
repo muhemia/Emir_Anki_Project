@@ -368,3 +368,45 @@ test("Bilder bleiben erhalten, wenn eine neue Karte auf einem anderen Gerät sie
     "1",
   );
 });
+
+test("Synchronisiert große und tiefe Sammlungen ohne Anzahl- oder Tiefenlimit", async () => {
+  const roots = Array.from({ length: 12 }, (_, i) =>
+    folder(`Großes Fach ${i}`),
+  );
+  const children = Array.from({ length: 12 }, (_, i) =>
+    folder(`Thema ${i}`, roots[0].id),
+  );
+  const nested = [];
+  let parent = children[0];
+  for (let level = 3; level <= 8; level++) {
+    parent = folder(`Ebene ${level}`, parent.id);
+    nested.push(parent);
+  }
+  const cards = Array.from({ length: 1501 }, () => card(parent.id));
+  const initial = await sync([
+    ...[...roots, ...children, ...nested].map((f) => change("folders", f)),
+    ...cards.map((c) => change("cards", c)),
+  ]);
+  assert.equal(
+    initial.changes.filter(
+      (c) => c.kind === "cards" && c.value?.folderId === parent.id,
+    ).length,
+    1501,
+  );
+  const extra = card(parent.id);
+  const updated = await sync([change("cards", extra)], initial.cursor);
+  assert.ok(
+    updated.changes.some(
+      (c) => c.id === extra.id && c.value?.folderId === parent.id,
+    ),
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT count(*) FROM cards WHERE user_id=$1 AND folder_id=$2",
+        [user.id, parent.id],
+      )
+    ).rows[0].count,
+    "1502",
+  );
+});

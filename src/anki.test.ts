@@ -29,6 +29,35 @@ beforeEach(async () => {
 afterAll(() => database.delete());
 
 describe("Anki-Pakete", () => {
+  it("akzeptiert am Datei-Größengate 200 MB und lehnt ein weiteres Byte ab", async () => {
+    const source = await saveFolder(
+      "Größentest",
+      null,
+      "sage",
+      undefined,
+      database,
+    );
+    await database.cards.add({
+      id: id(),
+      folderId: source.id,
+      front: "Frage",
+      back: "Antwort",
+      frontImages: [],
+      backImages: [],
+      schedule: newSchedule(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    const file = await exportAnkiPackage(source.id, false, database);
+    // Test the file-size boundary with a valid small APKG to avoid allocating 200 MB.
+    Object.defineProperty(file, "size", {
+      value: 200 * 1024 * 1024,
+      configurable: true,
+    });
+    await expect(prepareAnkiImport(file)).resolves.toBeDefined();
+    Object.defineProperty(file, "size", { value: 200 * 1024 * 1024 + 1 });
+    await expect(prepareAnkiImport(file)).rejects.toThrow("höchstens 200 MB");
+  });
   it("trennt Ordnerexport und direkte Karten und fügt direkte Karten ohne neuen Ordner hinzu", async () => {
     const parent = await saveFolder(
       "Medizin",

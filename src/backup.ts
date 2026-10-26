@@ -12,7 +12,6 @@ import {
   uniqueName,
 } from "./domain";
 import type { Flashcard, Folder, Media, Review } from "./types";
-import { assertImportCapacity } from "./limits";
 
 const MB = 1024 * 1024;
 const uid = z.string().min(1).max(128);
@@ -46,33 +45,29 @@ const packageSchema = z.object({
   version: z.literal(1),
   kind: z.enum(["backup", "share"]),
   createdAt: z.string(),
-  folders: z
-    .array(
-      z.object({
-        id: uid,
-        parentId: uid.nullable(),
-        name: z.string().trim().min(1).max(120),
-        color: z.enum(["sage", "blue", "amber", "rose", "violet", "stone"]),
-        createdAt: finite,
-        sortOrder: finite.int().optional(),
-      }),
-    )
-    .max(10000),
-  cards: z
-    .array(
-      z.object({
-        id: uid,
-        folderId: uid.nullable(),
-        front: z.string().max(50000),
-        back: z.string().max(50000),
-        frontImages: z.array(uid).max(20),
-        backImages: z.array(uid).max(20),
-        createdAt: finite,
-        updatedAt: finite,
-        schedule: scheduleSchema.optional(),
-      }),
-    )
-    .max(50000),
+  folders: z.array(
+    z.object({
+      id: uid,
+      parentId: uid.nullable(),
+      name: z.string().trim().min(1).max(120),
+      color: z.enum(["sage", "blue", "amber", "rose", "violet", "stone"]),
+      createdAt: finite,
+      sortOrder: finite.int().optional(),
+    }),
+  ),
+  cards: z.array(
+    z.object({
+      id: uid,
+      folderId: uid.nullable(),
+      front: z.string().max(50000),
+      back: z.string().max(50000),
+      frontImages: z.array(uid).max(20),
+      backImages: z.array(uid).max(20),
+      createdAt: finite,
+      updatedAt: finite,
+      schedule: scheduleSchema.optional(),
+    }),
+  ),
   media: z
     .array(
       z.object({
@@ -152,9 +147,9 @@ export async function exportPackage(
   for (let i = 0; i < snapshot.media.length; i++) {
     const m = snapshot.media[i];
     totalSize += m.data.byteLength;
-    if (totalSize > 100 * MB)
+    if (totalSize > 200 * MB)
       throw new Error(
-        "Version 1 unterstützt Sicherungen bis 100 MB. Bitte exportiere einzelne Themen.",
+        "Version 1 unterstützt Sicherungen bis 200 MB. Bitte exportiere einzelne Themen.",
       );
     zip.file(media[i].path, m.data);
   }
@@ -181,9 +176,9 @@ export async function exportPackage(
     compression: "DEFLATE",
     compressionOptions: { level: 3 },
   });
-  if (result.size > 100 * MB)
+  if (result.size > 200 * MB)
     throw new Error(
-      "Die Sicherung ist größer als 100 MB. Bitte exportiere einzelne Themen.",
+      "Die Sicherung ist größer als 200 MB. Bitte exportiere einzelne Themen.",
     );
   return result;
 }
@@ -239,8 +234,8 @@ export function isImage(bytes: Uint8Array, mime: string) {
   return false;
 }
 export async function prepareImport(file: Blob): Promise<PreparedImport> {
-  if (file.size > 100 * MB)
-    throw new Error("Bitte wähle eine Sicherung unter 100 MB.");
+  if (file.size > 200 * MB)
+    throw new Error("Bitte wähle eine Sicherung mit höchstens 200 MB.");
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(await file.arrayBuffer());
@@ -250,8 +245,7 @@ export async function prepareImport(file: Blob): Promise<PreparedImport> {
   if (Object.keys(zip.files).length > 50002)
     throw new Error("Die Sicherung enthält zu viele Dateien.");
   const entry = zip.file("collection.json");
-  if (!entry)
-    throw new Error("Keine Emir-Cards-Sicherung gefunden.");
+  if (!entry) throw new Error("Keine Emir-Cards-Sicherung gefunden.");
   let data: PackageData;
   try {
     data = packageSchema.parse(
@@ -305,7 +299,7 @@ export async function prepareImport(file: Blob): Promise<PreparedImport> {
     if (!image) throw new Error(`Das Bild „${m.name}“ fehlt.`);
     const bytes = await readLimited(image, 12 * MB);
     total += bytes.length;
-    if (total > 100 * MB)
+    if (total > 200 * MB)
       throw new Error("Die entpackten Bilder sind zusammen zu groß.");
     if (!isImage(bytes, m.type))
       throw new Error(`Das Bild „${m.name}“ hat ein ungültiges Format.`);
@@ -377,12 +371,6 @@ export async function commitImport(
         schedule:
           data.kind === "backup" ? hydrateSchedule(c.schedule!) : newSchedule(),
       }));
-      assertImportCapacity(
-        existing,
-        folders,
-        await database.cards.toArray(),
-        cards,
-      );
       const media = prepared.media.map((m) => ({
         ...m,
         id: mediaIds.get(m.id)!,

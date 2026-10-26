@@ -60,7 +60,7 @@ Alte browserlokale Sammlungen werden nicht automatisch in ein Konto übernommen,
 - Ordner mit Unterordnern, Karten mit Text und Bildern und FSRS-Wiederholungen.
 - Export als echtes Anki-Paket (`.apkg`): ganze Sammlung, ausgewählter Ordner mit Unterordnern oder nur dessen direkte Karten.
 - Import von `.apkg` und älteren Emir-Cards-ZIP-Sicherungen; Imports ergänzen vorhandene Karten.
-- Höchstens 10 Hauptordner, 10 direkte Unterordner je Ordner, 4 Ordnerebenen und 1.500 direkte Karten je Ordner.
+- Keine festen Anzahl- oder Tiefenlimits für Hauptordner, Unterordner und Karten, auch beim Verschieben, Importieren und Synchronisieren. Speicherplatz, Arbeitsspeicher und die Dateigrößen beim Import begrenzen die praktisch nutzbare Sammlung.
 
 Die Formatdetails stehen in [FORMAT.md](FORMAT.md).
 

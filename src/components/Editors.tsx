@@ -20,7 +20,6 @@ import {
 import { processImage } from "../media";
 import { colors, type Flashcard, type Folder, type Media } from "../types";
 import { Modal, CardImage, ErrorMessage, errorText } from "./ui";
-import { assertCardCapacity } from "../limits";
 
 export function FolderEditor({
   folder,
@@ -217,7 +216,6 @@ export function CardEditor({
         const target = current ? current.folderId : folderId;
         if (target && !(await db.folders.get(target)))
           throw new Error("Dieser Ordner wurde inzwischen entfernt.");
-        if (!card) assertCardCapacity(await db.cards.toArray(), target);
         const imageIds = new Set([...frontImages, ...backImages]);
         await db.media.bulkPut(pending.filter((m) => imageIds.has(m.id)));
         await db.cards.put({
@@ -340,8 +338,9 @@ export function CardEditor({
           })}
         </div>
         <p className="small muted">
-          Text, Bilder oder beides. Bilder werden auf maximal 2.048 Pixel verkleinert
-          und {isNative ? "auf deinem Gerät" : "in deinem Konto"} gespeichert.
+          Text, Bilder oder beides. Bilder werden auf maximal 2.048 Pixel
+          verkleinert und {isNative ? "auf deinem Gerät" : "in deinem Konto"}{" "}
+          gespeichert.
         </p>
         <ErrorMessage error={error} />
         <div className="dialog-actions">

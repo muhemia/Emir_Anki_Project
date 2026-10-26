@@ -112,8 +112,8 @@ export function BackupDialog({
     try {
       if (!/\.(apkg|zip)$/i.test(file.name))
         throw new Error("Bitte wähle eine .apkg- oder .zip-Datei.");
-      if (file.size > 100 * 1024 * 1024)
-        throw new Error("Bitte wähle eine Datei unter 100 MB.");
+      if (file.size > 200 * 1024 * 1024)
+        throw new Error("Bitte wähle eine Datei mit höchstens 200 MB.");
       const zip = await JSZip.loadAsync(await file.arrayBuffer());
       setPrepared(
         zip.file("collection.json")
@@ -295,7 +295,7 @@ export function BackupDialog({
                     ? "Datei hier ablegen"
                     : "Datei hier ablegen oder auswählen"}
               </strong>
-              <span>Anki .apkg oder Emir-Cards-ZIP · bis 100 MB</span>
+              <span>Anki .apkg oder Emir-Cards-ZIP · bis 200 MB</span>
               <input
                 className="visually-hidden"
                 type="file"
