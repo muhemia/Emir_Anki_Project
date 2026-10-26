@@ -39,6 +39,8 @@ npm run dev       # Web-App auf http://127.0.0.1:5173/app.html
 
 Alternativ startet `Start.command` beide Dienste und öffnet die App. Die API liest `DATABASE_URL` oder die PostgreSQL-Umgebungsvariablen aus `.env`; ein Beispiel steht in `.env.example`. `.env` wird nicht in Git eingecheckt. Die Vite-Entwicklungsansicht leitet `/api` an den lokalen API-Server weiter.
 
+Auf `localhost`, `127.0.0.1` und `::1` öffnet auch die Startadresse `/` direkt die App: mit Anmeldung oder, bei bestehender Sitzung, der Sammlung. Die Installationsseite wird lokal übersprungen. Das gilt auch für die lokale Produktionsvorschau.
+
 ## Konten und Daten
 
 Ein Konto kann direkt auf der Anmeldeseite angelegt werden. Der Benutzername enthält 3–32 Zeichen (`a–z`, `0–9`, `_`, `-`), das Passwort mindestens 8 Zeichen. Passwörter werden mit einem gesalzenen scrypt-Hash gespeichert. Die Anmeldung setzt ein `HttpOnly`-Sitzungscookie; nur die API greift auf PostgreSQL zu. Jede Datenbankzeile für Karten, Ordner, Bilder und Bewertungen enthält die Nutzer-ID. Fremdschlüssel halten die Verweise innerhalb des jeweiligen Nutzerkontos.

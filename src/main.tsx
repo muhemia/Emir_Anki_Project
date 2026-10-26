@@ -11,8 +11,10 @@ import { initializeNativeStorage, isNative } from "./native-storage";
 const installed =
   matchMedia("(display-mode: standalone)").matches ||
   (navigator as Navigator & { standalone?: boolean }).standalone === true;
+const local = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
 const showApp =
-  isNative || location.pathname.endsWith("/app.html") || installed;
+  isNative || local || location.pathname.endsWith("/app.html") || installed;
+if (showApp) document.title = "Emir Cards · Dein Lernraum";
 class ErrorBoundary extends Component<
   { children: ReactNode },
   { error: boolean }

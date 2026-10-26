@@ -615,7 +615,7 @@ test("Anki-Paket kann in der App exportiert und wieder importiert werden", async
   }
 });
 
-test("Installationsseite und Lern-App sind getrennt und behalten dieselbe Sammlung", async ({
+test("Lokale Startseite öffnet direkt die Lern-App mit derselben Sammlung", async ({
   page,
 }) => {
   await createFolder(page, "Mein vorhandenes Thema");
@@ -630,15 +630,22 @@ test("Installationsseite und Lern-App sind getrennt und behalten dieselbe Sammlu
   ).toHaveCount(0);
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Wissen, das bei dir bleibt." }),
+    page.getByRole("heading", { name: "Deine Sammlung." }),
   ).toBeVisible();
   await expect(
     page.getByRole("navigation", { name: "App-Navigation" }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "App installieren", exact: true }),
+  ).toHaveCount(0);
+  await expect(page).toHaveTitle("Emir Cards · Dein Lernraum");
+  await expect(
+    page.getByRole("button", {
+      name: "Ordner Mein vorhandenes Thema öffnen",
+      exact: true,
+    }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "App öffnen", exact: true }).click();
+  await page.goto("/app.html");
   await expect(page).toHaveURL(/app\.html$/);
   await expect(
     page.getByRole("button", {
